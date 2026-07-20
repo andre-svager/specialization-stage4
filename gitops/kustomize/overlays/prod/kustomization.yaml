@@ -1,0 +1,56 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+namePrefix: prod-
+
+bases:
+  - ../base
+
+commonLabels:
+  environment: production
+  tier: production
+
+commonAnnotations:
+  kustomize.config.k8s.io/environment: production
+
+# Production-specific configuration
+# Note: Most configuration now handled via Helm values in common-service/values/
+# Use environment-specific values files instead: values-prod/analytics-service.yaml, etc.
+
+# This overlay can be used for Kustomize-specific customizations
+# that are not easily handled via Helm values
+
+configMapGenerator:
+  - name: app-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=WARN
+      - ENVIRONMENT=production
+
+# Production-specific pod anti-affinity for high availability
+patchesJson6902:
+  - name: add-pod-anti-affinity
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/affinity/podAntiAffinity
+        value:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - analytics-service
+                        - auth-service
+                        - evaluation-service
+                        - flag-service
+                        - target-service
+                topologyKey: kubernetes.io/hostname

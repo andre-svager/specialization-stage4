@@ -1,0 +1,52 @@
+# Auth Service - Specific Values
+serviceName: auth-service
+
+image:
+  repository: 973397181776.dkr.ecr.us-east-1.amazonaws.com/auth-service
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8001"
+  prometheus.io/path: "/metrics"
+
+service:
+  port: 8001
+  targetPort: 8001
+
+ingress:
+  hosts:
+    - host: auth.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: auth-tls
+      hosts:
+        - auth.example.com
+
+autoscaling:
+  minReplicas: 1
+  maxReplicas: 3
+
+env:
+  - name: LOG_LEVEL
+    value: "INFO"
+  - name: ENVIRONMENT
+    value: "staging"
+
+database:
+  enabled: true
+  secretName: auth-db-credentials
+  createSecret: false
+  host: staging-auth-db.c8k5zq8g0qxw.us-east-1.amazonaws.com
+  name: auth_db
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8001
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8001

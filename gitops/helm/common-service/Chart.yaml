@@ -1,0 +1,12 @@
+apiVersion: v2
+name: common-service
+description: Common Service Helm Chart - Reusable for all microservices
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - microservice
+  - common
+maintainers:
+  - name: Your Organization
+    email: team@example.com

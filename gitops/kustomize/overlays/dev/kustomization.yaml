@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+namePrefix: dev-
+
+bases:
+  - ../base
+
+commonLabels:
+  environment: dev
+  tier: development
+
+commonAnnotations:
+  kustomize.config.k8s.io/environment: dev
+
+# Dev-specific configuration
+# Note: Most configuration now handled via Helm values in common-service/values/
+# Use environment-specific values files instead: values-dev/analytics-service.yaml, etc.
+
+# This overlay can be used for Kustomize-specific customizations
+# that are not easily handled via Helm values
+
+configMapGenerator:
+  - name: app-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=dev

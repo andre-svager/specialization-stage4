@@ -1,0 +1,52 @@
+# GitOps Directory - Patterns and Examples
+
+## Ignored Files
+# Secrets and credentials
+*.secrets
+*.key
+*.pem
+sealed-secret.yaml
+
+# Build outputs
+*.tar.gz
+*.zip
+dist/
+build/
+
+# Temporary files
+*.tmp
+*.bak
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Kubectl kubeconfig
+kubeconfig
+kubeconfig.*
+
+# Local development
+local/
+.terraform/
+terraform.tfstate*
