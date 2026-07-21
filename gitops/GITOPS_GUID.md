@@ -151,8 +151,8 @@ argocd login localhost:8080 --username admin --password <initial-password>
 # Add your Git repository
 argocd repo add https://github.com/andre-svager/specialization-stage4.git \
   --name gitops-repo \
-  --username <github-username> \
-  --password <github-token>
+  --username andre-svager \
+  --password <MY_PASS>
 
 # Or configure via ArgoCD UI:
 # Settings → Repositories → Connect Repo → HTTPS
