@@ -1,0 +1,57 @@
+# Analytics Service - Specific Values
+serviceName: analytics-service
+
+image:
+  repository: 973397181776.dkr.ecr.us-east-1.amazonaws.com/analytics-service
+
+imagePullSecrets:
+  - name: ecr-secret
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8005"
+  prometheus.io/path: "/metrics"
+
+service:
+  port: 8080
+  targetPort: 8005
+
+ingress:
+  hosts:
+    - host: analytics.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: analytics-tls
+      hosts:
+        - analytics.example.com
+
+env:
+  - name: LOG_LEVEL
+    value: "INFO"
+  - name: ENVIRONMENT
+    value: "staging"
+  - name: AWS_REGION
+    value: "us-east-1"
+  - name: DYNAMODB_TABLE_NAME
+    value: "ToggleMasterAnalytics"
+  - name: AWS_DYNAMODB_TABLE
+    value: "ToggleMasterAnalytics"
+  - name: SQS_QUEUE_URL
+    value: "https://sqs.us-east-1.amazonaws.com/973397181776/staging-evaluation-queue.fifo"
+  - name: AWS_SQS_URL
+    value: "https://sqs.us-east-1.amazonaws.com/973397181776/staging-evaluation-queue.fifo"
+
+database:
+  enabled: false
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8005
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8005

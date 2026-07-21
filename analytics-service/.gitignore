@@ -1,0 +1,8 @@
+# analytics-service/.gitignore
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.secret
+secrets/

@@ -1,0 +1,19 @@
+# ========== Basic Configuration ==========
+
+environment = "staging"
+project_id = "your-gcp-project-id"
+region = "us-central1"
+zone = "us-central1-a"
+
+# ========== Cluster Configuration ==========
+
+cluster_name = "togglemaster-gke"
+node_count = 1
+machine_type = "e2-medium"
+
+# ========== Network Configuration ==========
+
+network_name = "togglemaster-vpc"
+availability_zones = ["us-central1-a", "us-central1-b"]
+public_subnet_cidrs = ["10.1.0.0/24", "10.1.1.0/24"]
+private_subnet_cidrs = ["10.1.10.0/24", "10.1.11.0/24"]
