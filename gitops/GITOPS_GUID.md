@@ -67,8 +67,8 @@ gitops/
 2. CI/CD PIPELINE (GitHub Actions)
    ├─ Build Docker image
    ├─ Run tests
-   ├─ Push to GCR: gcr.io/PROJECT_ID/analytics-service:abc123
-   └─ Commit to GitOps repository with new image tag
+   ├─ Push to Artifact Registry: us-central1-docker.pkg.dev/PROJECT_ID/services/SERVICE_NAME:COMMIT_SHA
+   └─ Update GitOps repository with new image tag
 
 3. GIT REPOSITORY (GitOps Repo)
    ├─ Kubernetes manifests (gitops/apps/)
@@ -82,7 +82,7 @@ gitops/
    └─ Automatic synchronization initiated
 
 5. KUBERNETES CLUSTER (GKE)
-   ├─ New Docker image pulled from GCR
+   ├─ New Docker image pulled from Artifact Registry
    ├─ Pods replaced with new version
    ├─ Health checks pass
    └─ Traffic routed to new pods
@@ -92,6 +92,104 @@ gitops/
    ├─ Performance metrics
    ├─ Alerts and notifications
    └─ ArgoCD records final state
+```
+
+## 🤖 Automated CI/CD with ArgoCD
+
+### Zero-Touch Deployment Pipeline
+
+The complete CI/CD workflow is fully automated with no manual Docker deployment required:
+
+**Pipeline Steps:**
+
+1. **Code Push** - Developer pushes code to GitHub
+2. **GitHub Actions Trigger** - CI pipeline starts automatically
+3. **Build & Test** - Service builds and runs tests
+4. **Security Scanning** - Trivy, gosec/bandit security scans
+5. **Push to Artifact Registry** - Image pushed to `us-central1-docker.pkg.dev/fiap-502903/services/SERVICE_NAME:COMMIT_SHA`
+6. **Update GitOps Repository** - CI automatically updates Helm values file with new image tag
+7. **ArgoCD Auto-Sync** - ArgoCD detects GitOps repository change and deploys to GKE
+
+### Required GitHub Secrets
+
+Configure these in your GitHub repository settings:
+
+```
+GCP_PROJECT_ID: fiap-502903
+GCP_WORKLOAD_IDENTITY_PROVIDER: projects/PROJECT_ID/locations/global/workloadIdentityPools/POOL/providers/PROVIDER
+GCP_SERVICE_ACCOUNT: ci-service-account@fiap-502903.iam.gserviceaccount.com
+GITHUB_TOKEN: (default GitHub token - no configuration needed)
+```
+
+### How It Works
+
+**No manual Docker deployment needed.** The CI pipeline:
+
+1. **Builds** your Docker image with Go/Python toolchain
+2. **Scans** for security vulnerabilities (Trivy, gosec, bandit)
+3. **Pushes** to Google Artifact Registry using Workload Identity
+4. **Updates** `gitops/helm/common-service/values/SERVICE_NAME.yaml` with new image tag
+5. **Commits** the change to the GitOps repository using GitHub token
+6. **ArgoCD** automatically detects the change and syncs to GKE
+
+### CI Pipeline Features
+
+**Go Services (auth, evaluation):**
+- Go 1.21 with dependency caching
+- golangci-lint for linting
+- gosec for security scanning
+- Unit tests with race detector
+- Coverage reporting to Codecov
+- Trivy filesystem and image scanning
+
+**Python Services (analytics, flag, target):**
+- Python 3.11 with pip caching
+- black/isort/flake8 for linting
+- bandit for security scanning
+- pytest for unit tests
+- Coverage reporting to Codecov
+- Trivy filesystem and image scanning
+
+### ArgoCD Configuration
+
+Your ArgoCD applications in `gitops/apps/` are configured to:
+- Monitor the GitOps repository (`specialization-stage4.git`)
+- Auto-sync on changes (automated sync policy)
+- Use the common-service Helm chart
+- Deploy to your GKE cluster (`togglemaster` in `us-central1`)
+- Self-heal any manual modifications
+
+### Benefits
+
+- ✅ **Zero-touch deployment** - No manual Docker commands
+- ✅ **GitOps compliance** - All changes tracked in Git
+- ✅ **Automatic rollback** - Revert Git commit to rollback deployment
+- ✅ **Multi-environment** - Use Kustomize overlays for dev/staging/prod
+- ✅ **Self-healing** - ArgoCD maintains desired state
+- ✅ **Security-first** - Automated vulnerability scanning
+- ✅ **Workload Identity** - No hardcoded credentials
+- ✅ **Audit trail** - Complete deployment history in Git
+
+### Example Workflow
+
+```bash
+# Developer makes changes
+git commit -m "feat: add new feature"
+git push origin main
+
+# GitHub Actions automatically:
+# 1. Builds Docker image
+# 2. Runs tests and security scans
+# 3. Pushes to Artifact Registry
+# 4. Updates gitops/helm/common-service/values/analytics-service.yaml
+# 5. Commits change to GitOps repository
+
+# ArgoCD automatically:
+# 6. Detects GitOps repository change
+# 7. Syncs new image to GKE cluster
+# 8. Rolls out new deployment
+
+# No manual intervention required!
 ```
 
 ## 🛠️ ArgoCD Setup for GKE
@@ -271,6 +369,7 @@ spec:
 
 ### Scenario: Update Analytics Service
 
+**Manual Workflow (Old Way):**
 ```bash
 # 1. Modify code
 cd analytics-service
@@ -297,6 +396,25 @@ argocd app list
 # 5. Validate deployment
 kubectl rollout status deployment/analytics-service
 kubectl logs -l app=analytics-service
+```
+
+**Automated Workflow (New Way):**
+```bash
+# 1. Modify code
+cd analytics-service
+# ... make changes ...
+git commit -m "feat: add new analytics feature"
+git push origin main
+
+# That's it! Everything else happens automatically:
+# - GitHub Actions builds, tests, scans, and pushes image
+# - CI updates GitOps repository with new image tag
+# - ArgoCD detects change and deploys to GKE
+# - No manual steps required
+
+# 2. Monitor deployment (optional)
+argocd app get analytics-service
+kubectl rollout status deployment/analytics-service
 ```
 
 ## 🧪 Validation and Testing
