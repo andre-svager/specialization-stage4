@@ -44,6 +44,18 @@ module "postgres" {
   postgres_admin_password = var.postgres_admin_password
   service_db_passwords    = var.service_db_passwords
   kubeconfig_path         = var.kubeconfig_path
+}
 
-  depends_on = [module.gke]
+
+module "artifact_registry" {
+  source     = "./modules/artifact_registry"
+  project_id = var.project_id
+  location   = var.region
+  repositories = [
+    "auth-service",
+    "analytics-service",
+    "evaluation-service",
+    "flag-service",
+    "target-service",
+  ]
 }

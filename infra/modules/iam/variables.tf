@@ -16,7 +16,7 @@ variable "gke_node_roles" {
     "roles/monitoring.metricWriter",
     "roles/monitoring.viewer",
     "roles/stackdriver.resourceUser",
-    "roles/objstorage.viewer",  # For pulling images from GCR
+    "roles/objstorage.viewer", # For pulling images from GCR
   ]
 }
 
@@ -27,11 +27,11 @@ variable "workload_identity_services" {
     service_account = string
   }))
   default = {
-    analytics = { namespace = "default", service_account = "analytics-service" }
-    auth      = { namespace = "default", service_account = "auth-service" }
+    analytics  = { namespace = "default", service_account = "analytics-service" }
+    auth       = { namespace = "default", service_account = "auth-service" }
     evaluation = { namespace = "default", service_account = "evaluation-service" }
-    flag      = { namespace = "default", service_account = "flag-service" }
-    target    = { namespace = "default", service_account = "target-service" }
+    flag       = { namespace = "default", service_account = "flag-service" }
+    target     = { namespace = "default", service_account = "target-service" }
   }
 }
 

@@ -41,7 +41,7 @@ resource "kubernetes_config_map" "argocd_config" {
 
   data = {
     "application.instanceLabelKey" = "argocd.argoproj.io/instance"
-    "repositories"                 = yamlencode([
+    "repositories" = yamlencode([
       {
         type = "git"
         url  = var.git_repository_url

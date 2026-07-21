@@ -7,7 +7,7 @@ resource "google_service_account" "gke_nodes" {
 }
 
 resource "google_project_iam_member" "gke_nodes_roles" {
-  for_each = var.gke_node_roles
+  for_each = toset(var.gke_node_roles)
 
   project = var.project_id
   role    = each.value
@@ -23,7 +23,7 @@ resource "google_service_account_iam_member" "gke_workload_identity" {
 }
 
 resource "google_service_account" "microservices" {
-  for_each = var.microservices
+  for_each = { for svc in var.microservices : svc => svc }
 
   account_id   = "${var.environment}-${each.key}-sa"
   display_name = "Service account for ${each.key} service"
@@ -31,7 +31,7 @@ resource "google_service_account" "microservices" {
 }
 
 resource "google_project_iam_member" "microservices_roles" {
-  for_each = var.microservices_iam
+  for_each = { for m in var.microservices_iam : m.service => m }
 
   project = var.project_id
   role    = each.value.role
