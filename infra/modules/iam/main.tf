@@ -65,9 +65,6 @@ resource "google_iam_workload_identity_pool_provider" "github_actions" {
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
-
-  # Required for GitHub Actions Workload Identity
-  audience = ["https://iam.googleapis.com/${google_iam_workload_identity_pool.github_actions.name}"]
 }
  
 # Service Account for CI/CD
