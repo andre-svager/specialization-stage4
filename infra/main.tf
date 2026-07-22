@@ -1,5 +1,5 @@
 # GCP-based infrastructure foundation for ToggleMaster.
-# This provisions networking, GKE cluster, IAM, and pod-based Postgres.
+# This provisions networking, GKE cluster, IAM.
 
 module "networking" {
   source = "./modules/networking"
@@ -37,15 +37,22 @@ module "gke" {
   depends_on = [module.networking, module.iam]
 }
 
-module "postgres" {
-  source = "./modules/postgres"
+data "google_client_config" "default" {}
 
-  environment             = var.environment
-  postgres_admin_password = var.postgres_admin_password
-  service_db_passwords    = var.service_db_passwords
-  kubeconfig_path         = var.kubeconfig_path
+data "google_container_cluster" "primary" {
+  name     = var.cluster_name
+  location = var.zone
+  project  = var.project_id
+
 }
 
+provider "kubernetes" {
+  host  = "https://${data.google_container_cluster.primary.endpoint}"
+  token = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(
+    data.google_container_cluster.primary.master_auth[0].cluster_ca_certificate
+  )
+}
 
 module "artifact_registry" {
   source     = "./modules/artifact_registry"

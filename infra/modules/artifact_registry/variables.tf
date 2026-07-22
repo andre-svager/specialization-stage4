@@ -6,7 +6,7 @@ variable "project_id" {
 variable "location" {
   description = "GCP region/location for repositories"
   type        = string
-  default     = "us-central1"
+  default     = "us-central1-a"
 }
 
 variable "repositories" {

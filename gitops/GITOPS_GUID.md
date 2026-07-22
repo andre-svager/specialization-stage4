@@ -67,7 +67,7 @@ gitops/
 2. CI/CD PIPELINE (GitHub Actions)
    ├─ Build Docker image
    ├─ Run tests
-   ├─ Push to Artifact Registry: us-central1-docker.pkg.dev/PROJECT_ID/services/SERVICE_NAME:COMMIT_SHA
+   ├─ Push to Artifact Registry: us-central1-a-docker.pkg.dev/PROJECT_ID/services/SERVICE_NAME:COMMIT_SHA
    └─ Update GitOps repository with new image tag
 
 3. GIT REPOSITORY (GitOps Repo)
@@ -114,12 +114,50 @@ The complete CI/CD workflow is fully automated with no manual Docker deployment 
 
 Configure these in your GitHub repository settings:
 
+**Step 1: Apply Terraform to create Workload Identity resources**
+
+First, apply the IAM module to create the Workload Identity Pool, Provider, and CI/CD service account:
+
+```bash
+cd infra
+terraform plan
+terraform apply
+```
+
+**Step 2: Get the actual values from Terraform outputs**
+
+After successful apply, get the real values (don't use placeholders):
+
+```bash
+terraform output workload_identity_provider
+terraform output ci_service_account
+```
+
+This will output something like:
+- `workload_identity_provider`: `projects/fiap-502903/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider`
+- `ci_service_account`: `ci-service-account@fiap-502903.iam.gserviceaccount.com`
+
+**Step 3: Configure GitHub repository secrets**
+
+Via GitHub UI: Settings → Secrets and variables → Actions → New repository secret
+
+Add these secrets with the real values from step 2:
+
 ```
 GCP_PROJECT_ID: fiap-502903
-GCP_WORKLOAD_IDENTITY_PROVIDER: projects/PROJECT_ID/locations/global/workloadIdentityPools/POOL/providers/PROVIDER
-GCP_SERVICE_ACCOUNT: ci-service-account@fiap-502903.iam.gserviceaccount.com
+GCP_WORKLOAD_IDENTITY_PROVIDER: <value from terraform output workload_identity_provider>
+GCP_SERVICE_ACCOUNT: <value from terraform output ci_service_account>
 GITHUB_TOKEN: (default GitHub token - no configuration needed)
 ```
+
+Or using GitHub CLI:
+```bash
+gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER --body "projects/fiap-502903/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+gh secret set GCP_SERVICE_ACCOUNT --body "ci-service-account@fiap-502903.iam.gserviceaccount.com"
+gh secret set GCP_PROJECT_ID --body "fiap-502903"
+```
+
+**Important**: Never use the placeholder values (`PROJECT_ID/POOL/PROVIDER`) - always get the real values from Terraform outputs after applying the IAM module.
 
 ### How It Works
 
@@ -156,7 +194,7 @@ Your ArgoCD applications in `gitops/apps/` are configured to:
 - Monitor the GitOps repository (`specialization-stage4.git`)
 - Auto-sync on changes (automated sync policy)
 - Use the common-service Helm chart
-- Deploy to your GKE cluster (`togglemaster` in `us-central1`)
+- Deploy to your GKE cluster (`togglemaster` in `us-central1-a`)
 - Self-heal any manual modifications
 
 ### Benefits
@@ -638,3 +676,33 @@ kubectl apply -f backup-argocd.yaml
 - [GitOps Principles](https://www.gitops.tech/)
 - [GKE Documentation](https://cloud.google.com/kubernetes-engine)
 - [Helm Best Practices](https://helm.sh/docs/chart_best_practices/)
+
+
+gcloud container node-pools describe togglemaster-gke-node-pool --cluster=togglemaster-gke --zone=us-central1-a-a --format=json
+
+
+1. Confirm the real values first
+Before configuring anything, GCP_WORKLOAD_IDENTITY_PROVIDER still has literal placeholders (PROJECT_ID/POOL/PROVIDER) — don't paste it as-is. Get the real path:
+
+terraform output workload_identity_provider
+
+If that's empty (as it was earlier), the WIF pool/provider Terraform resources haven't been applied yet — go back and run terraform apply on that module first, or get it directly from GCP:
+
+gcloud iam workload-identity-pools providers describe PROVIDER_ID \
+  --workload-identity-pool=POOL_ID \
+  --location=global \
+  --project=fiap-502903 \
+  --format="value(name)"
+
+configure github env variables
+3. Add these as GitHub repo secrets
+Via UI: Settings → Secrets and variables → Actions → New repository secret, one at a time:
+
+GCP_PROJECT_ID -> fiap-502903
+GCP_WORKLOAD_IDENTITY_PROVIDER-> the real path from step 1
+GCP_SERVICE_ACCOUNT-> ci-service-account@fiap-502903.iam.gserviceaccount.com
+
+gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER --body "projects/123456789012/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+gh secret set GCP_SERVICE_ACCOUNT --body "ci-service-account@fiap-502903.iam.gservicea
+
+gcloud container clusters list
