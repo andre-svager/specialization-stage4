@@ -22,6 +22,12 @@ resource "google_service_account_iam_member" "gke_workload_identity" {
   member             = "serviceAccount:${var.project_id}.svc.id.goog[${each.value.namespace}/${each.value.service_account}]"
 }
 
+resource "google_project_iam_member" "ci_artifact_registry_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.ci_cd.email}"
+}
+
 resource "google_service_account" "microservices" {
   for_each = { for svc in var.microservices : svc => svc }
 
