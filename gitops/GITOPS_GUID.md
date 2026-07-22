@@ -706,3 +706,103 @@ gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER --body "projects/123456789012/locat
 gh secret set GCP_SERVICE_ACCOUNT --body "ci-service-account@fiap-502903.iam.gservicea
 
 gcloud container clusters list
+
+
+
+# Starting ArgoCD on GKE — togglemaster
+
+Cluster: `togglemaster-gke` · Zone: `us-central1-a` · Project: `fiap-502903`
+
+ArgoCD only needs a working GKE cluster to install — it does **not** depend on
+the Workload Identity / IAM setup (that's only required later, for GitHub
+Actions CI to push images to Artifact Registry). You can run this now,
+independent of any pending IAM fixes.
+
+## 1. Point kubectl at the cluster
+
+```bash
+gcloud container clusters get-credentials togglemaster-gke --zone us-central1-a --project fiap-502903
+kubectl get nodes
+```
+
+## 2. Create the namespace + apply ArgoCD config
+
+```bash
+kubectl apply -f gitops/argocd-namespace.yaml
+kubectl apply -f gitops/argocd-config.yaml
+```
+
+## 3. Install ArgoCD (Helm)
+
+```bash
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+
+helm install argocd argo/argo-cd --namespace argocd --version 5.51.0
+```
+
+Wait for pods to come up:
+
+```bash
+kubectl get pods -n argocd -w
+```
+
+## 4. Get the admin password and log in
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+```
+
+In another terminal:
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+argocd login localhost:8080 --username admin --password <password from above>
+```
+
+Access the UI at `https://localhost:8080`.
+
+## 5. Connect the GitHub repo
+
+Use a GitHub **Personal Access Token**, not your account password — GitHub no
+longer accepts plain passwords for git operations.
+
+```bash
+argocd repo add https://github.com/andre-svager/specialization-stage4.git \
+  --name gitops-repo \
+  --username andre-svager \
+  --password <GitHub Personal Access Token>
+```
+
+## 6. Deploy the app-of-apps root
+
+```bash
+kubectl apply -f gitops/apps/argocd-root.yaml
+```
+
+`argocd-root` watches `gitops/apps/` with `automated: { prune: true, selfHeal: true }`,
+so this single apply cascades into ArgoCD creating and syncing **every**
+`Application` manifest in that folder — all 5 microservices plus Postgres
+(once `postgres-app.yaml` is pushed). No need to `kubectl apply` each service
+app individually.
+
+## 7. Verify
+
+```bash
+argocd app list
+kubectl get pods -n db-infra
+kubectl get pods -n default
+```
+
+---
+
+## Notes / gotchas
+
+- The correct cluster location is **`us-central1-a`** (a zone, not a region).
+  The project's `.github/workflows/ci-*.yml` files currently reference
+  `location: us-central1` and `cluster_name: togglemaster` — both need
+  correcting to `us-central1-a` / `togglemaster-gke` to match the real
+  cluster.
+- Workload Identity / IAM setup is a separate concern from starting ArgoCD —
+  it's only needed once CI needs to push images to Artifact Registry.

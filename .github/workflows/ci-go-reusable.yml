@@ -23,7 +23,7 @@ on:
         required: true
       gcp_service_account:
         required: true
-      github_token:
+      gh_token:
         required: true
 
 jobs:
@@ -194,7 +194,7 @@ jobs:
           SERVICE_NAME: ${{ inputs.service_name }}
           IMAGE_URI: ${{ env.image_uri }}
           COMMIT_SHA: ${{ github.sha }}
-          GITHUB_TOKEN: ${{ secrets.github_token }}
+          GITHUB_TOKEN: ${{ secrets.gh_token }}
         run: |
           # Clone GitOps repository
           git clone https://x-access-token:${GITHUB_TOKEN}@github.com/andre-svager/specialization-stage4.git gitops-repo
