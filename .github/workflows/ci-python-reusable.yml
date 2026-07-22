@@ -52,13 +52,6 @@ jobs:
       - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Get GKE credentials
-        uses: google-github-actions/get-gke-credentials@v2
-        with:
-          cluster_name: togglemaster
-          location: us-central1-a
-          project_id: ${{ secrets.gcp_project_id }}
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -145,11 +138,11 @@ jobs:
         run: echo "✓ Trivy Docker image scan completed"
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker us-central1-a-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Build and push Docker image to Artifact Registry
         env:
-          AR_HOST: us-central1-a-docker.pkg.dev
+          AR_HOST: us-central1-docker.pkg.dev
           PROJECT_ID: ${{ secrets.gcp_project_id }}
           REPO: services
           IMAGE_NAME: ${{ inputs.service_name }}

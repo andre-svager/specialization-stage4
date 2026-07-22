@@ -67,7 +67,7 @@ gitops/
 2. CI/CD PIPELINE (GitHub Actions)
    ├─ Build Docker image
    ├─ Run tests
-   ├─ Push to Artifact Registry: us-central1-a-docker.pkg.dev/PROJECT_ID/services/SERVICE_NAME:COMMIT_SHA
+   ├─ Push to Artifact Registry: us-central1-docker.pkg.dev/PROJECT_ID/services/SERVICE_NAME:COMMIT_SHA
    └─ Update GitOps repository with new image tag
 
 3. GIT REPOSITORY (GitOps Repo)
