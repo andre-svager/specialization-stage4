@@ -268,3 +268,9 @@ remove any `depends_on` on the data source once the cluster already exists.
 - [GitOps Principles](https://www.gitops.tech/)
 - [GKE Docs](https://cloud.google.com/kubernetes-engine)
 - [Helm Best Practices](https://helm.sh/docs/chart_best_practices/)
+
+Lessons learned
+Artifact Registry hostnames use the region, not the zone. The correct format is us-central1-docker.pkg.dev
+To find usages
+
+ % find . -path "*/.github/workflows*" -name "*.yml" -exec grep -Hn "us-central1-a" {} \;
