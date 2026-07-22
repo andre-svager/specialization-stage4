@@ -111,6 +111,11 @@ jobs:
           fail_ci_if_error: false
         continue-on-error: true
 
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v1
+        with:
+          version: 'latest'
+
       - name: SCA - Scan filesystem with Trivy
         working-directory: ${{ inputs.service_path }}
         run: trivy fs --severity CRITICAL,HIGH . || true
@@ -133,12 +138,6 @@ jobs:
           docker build -t ${{ inputs.service_name }}:${{ github.sha }} .
           docker save ${{ inputs.service_name }}:${{ github.sha }} -o image.tar
 
-      - name: Install Trivy
-        run: |
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update && sudo apt-get install -y trivy || true
-
       - name: Scan Docker image with Trivy
         working-directory: ${{ inputs.service_path }}
         run: trivy image --input image.tar --severity CRITICAL || true
@@ -148,11 +147,12 @@ jobs:
         run: echo "✓ Trivy Docker image scan completed"
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker us-central1-a-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Build and push Docker image to Artifact Registry
+        id: push-image
         env:
-          AR_HOST: us-central1-a-docker.pkg.dev
+          AR_HOST: us-central1-docker.pkg.dev
           PROJECT_ID: ${{ secrets.gcp_project_id }}
           REPO: services
           IMAGE_NAME: ${{ inputs.service_name }}
@@ -164,11 +164,12 @@ jobs:
           docker push "$IMAGE_URI:$IMAGE_TAG"
           docker push "$IMAGE_URI:latest"
           echo "image_uri=$IMAGE_URI:$IMAGE_TAG" >> $GITHUB_ENV
+          echo "image_uri=$IMAGE_URI:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Create deployment artifact
         env:
           SERVICE_NAME: ${{ inputs.service_name }}
-          IMAGE_URI: ${{ env.image_uri }}
+          IMAGE_URI: ${{ steps.push-image.outputs.image_uri }}
           COMMIT_SHA: ${{ github.sha }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message || 'No message' }}
         run: |
@@ -189,10 +190,15 @@ jobs:
           path: deployment-info.json
         continue-on-error: true
 
+      - name: Install yq
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+
       - name: Update GitOps repository with new image tag
         env:
           SERVICE_NAME: ${{ inputs.service_name }}
-          IMAGE_URI: ${{ env.image_uri }}
+          IMAGE_URI: ${{ steps.push-image.outputs.image_uri }}
           COMMIT_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.gh_token }}
         run: |
@@ -225,7 +231,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Service:** ${{ inputs.service_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** ${{ env.image_uri }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** ${{ steps.push-image.outputs.image_uri }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Checks Completed" >> $GITHUB_STEP_SUMMARY
           echo "✓ Dependencies downloaded" >> $GITHUB_STEP_SUMMARY
