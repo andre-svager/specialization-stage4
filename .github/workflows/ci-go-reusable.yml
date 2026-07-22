@@ -17,13 +17,13 @@ on:
         default: '1.21'
         description: Go version to use
     secrets:
-      aws_account_id:
+      gcp_project_id:
         required: true
-      aws_region:
+      gcp_workload_identity_provider:
         required: true
-      aws_access_key_id:
+      gcp_service_account:
         required: true
-      aws_secret_access_key:
+      gh_token:
         required: true
 
 jobs:
@@ -34,12 +34,30 @@ jobs:
       contents: read
       security-events: write
       packages: read
+      id-token: write
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ secrets.gcp_project_id }}
+          workload_identity_provider: ${{ secrets.gcp_workload_identity_provider }}
+          service_account: ${{ secrets.gcp_service_account }}
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: togglemaster
+          location: us-central1-a
+          project_id: ${{ secrets.gcp_project_id }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -93,6 +111,11 @@ jobs:
           fail_ci_if_error: false
         continue-on-error: true
 
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v1
+        with:
+          version: 'latest'
+
       - name: SCA - Scan filesystem with Trivy
         working-directory: ${{ inputs.service_path }}
         run: trivy fs --severity CRITICAL,HIGH . || true
@@ -115,12 +138,6 @@ jobs:
           docker build -t ${{ inputs.service_name }}:${{ github.sha }} .
           docker save ${{ inputs.service_name }}:${{ github.sha }} -o image.tar
 
-      - name: Install Trivy
-        run: |
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update && sudo apt-get install -y trivy || true
-
       - name: Scan Docker image with Trivy
         working-directory: ${{ inputs.service_path }}
         run: trivy image --input image.tar --severity CRITICAL || true
@@ -129,34 +146,30 @@ jobs:
         working-directory: ${{ inputs.service_path }}
         run: echo "✓ Trivy Docker image scan completed"
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.aws_access_key_id }}
-          aws-secret-access-key: ${{ secrets.aws_secret_access_key }}
-          aws-region: ${{ secrets.aws_region }}
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and push Docker image to ECR
+      - name: Build and push Docker image to Artifact Registry
+        id: push-image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ inputs.service_name }}
+          AR_HOST: us-central1-docker.pkg.dev
+          PROJECT_ID: ${{ secrets.gcp_project_id }}
+          REPO: services
+          IMAGE_NAME: ${{ inputs.service_name }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd ${{ inputs.service_path }}
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+          IMAGE_URI="$AR_HOST/$PROJECT_ID/$REPO/$IMAGE_NAME"
+          docker build -t "$IMAGE_URI:$IMAGE_TAG" -t "$IMAGE_URI:latest" .
+          docker push "$IMAGE_URI:$IMAGE_TAG"
+          docker push "$IMAGE_URI:latest"
+          echo "image_uri=$IMAGE_URI:$IMAGE_TAG" >> $GITHUB_ENV
+          echo "image_uri=$IMAGE_URI:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Create deployment artifact
         env:
           SERVICE_NAME: ${{ inputs.service_name }}
-          IMAGE_URI: ${{ env.image_uri }}
+          IMAGE_URI: ${{ steps.push-image.outputs.image_uri }}
           COMMIT_SHA: ${{ github.sha }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message || 'No message' }}
         run: |
@@ -177,13 +190,48 @@ jobs:
           path: deployment-info.json
         continue-on-error: true
 
+      - name: Install yq
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+
+      - name: Update GitOps repository with new image tag
+        env:
+          SERVICE_NAME: ${{ inputs.service_name }}
+          IMAGE_URI: ${{ steps.push-image.outputs.image_uri }}
+          COMMIT_SHA: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ secrets.gh_token }}
+        run: |
+          # Clone GitOps repository
+          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/andre-svager/specialization-stage4.git gitops-repo
+          cd gitops-repo
+          
+          # Update image tag in Helm values file
+          VALUES_FILE="gitops/helm/common-service/values/${SERVICE_NAME}.yaml"
+          if [ -f "$VALUES_FILE" ]; then
+            # Update image repository and tag
+            yq eval ".image.repository = \"${IMAGE_URI%:*}\"" -i "$VALUES_FILE"
+            yq eval ".image.tag = \"${IMAGE_URI##*:}\"" -i "$VALUES_FILE"
+            
+            # Commit and push changes
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git add "$VALUES_FILE"
+            git commit -m "ci: update ${SERVICE_NAME} image to ${IMAGE_URI##*:}"
+            git push origin main
+            echo "✓ Updated GitOps repository with new image tag"
+          else
+            echo "⚠ Values file not found: $VALUES_FILE"
+          fi
+        continue-on-error: true
+
       - name: Print summary
         run: |
           echo "## ✅ CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Service:** ${{ inputs.service_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** ${{ env.image_uri }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** ${{ steps.push-image.outputs.image_uri }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Checks Completed" >> $GITHUB_STEP_SUMMARY
           echo "✓ Dependencies downloaded" >> $GITHUB_STEP_SUMMARY
@@ -194,4 +242,4 @@ jobs:
           echo "✓ Go binary build" >> $GITHUB_STEP_SUMMARY
           echo "✓ Docker image build" >> $GITHUB_STEP_SUMMARY
           echo "✓ Trivy image scan" >> $GITHUB_STEP_SUMMARY
-          echo "✓ Docker push to ECR" >> $GITHUB_STEP_SUMMARY
+          echo "✓ Docker push to Artifact Registry" >> $GITHUB_STEP_SUMMARY

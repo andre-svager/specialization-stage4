@@ -15,6 +15,8 @@ resource "google_container_cluster" "primary" {
   network    = var.network
   subnetwork = var.subnetwork
 
+  deletion_protection = false
+
   ip_allocation_policy {}
 
   workload_identity_config {
@@ -33,8 +35,8 @@ resource "google_container_node_pool" "primary_nodes" {
   node_count = var.node_count
 
   node_config {
-    machine_type = var.machine_type
-    disk_size_gb = 5   # was 100
+    machine_type = "e2-standard-2"  # Increased from e2-medium for more CPU
+    disk_size_gb = 20   # Minimum 12GB required for COS image
     disk_type    = "pd-standard"
     service_account = google_service_account.default.email
     oauth_scopes = [

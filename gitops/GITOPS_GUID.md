@@ -67,8 +67,8 @@ gitops/
 2. CI/CD PIPELINE (GitHub Actions)
    ├─ Build Docker image
    ├─ Run tests
-   ├─ Push to GCR: gcr.io/PROJECT_ID/analytics-service:abc123
-   └─ Commit to GitOps repository with new image tag
+   ├─ Push to Artifact Registry: us-central1-a-docker.pkg.dev/PROJECT_ID/services/SERVICE_NAME:COMMIT_SHA
+   └─ Update GitOps repository with new image tag
 
 3. GIT REPOSITORY (GitOps Repo)
    ├─ Kubernetes manifests (gitops/apps/)
@@ -82,7 +82,7 @@ gitops/
    └─ Automatic synchronization initiated
 
 5. KUBERNETES CLUSTER (GKE)
-   ├─ New Docker image pulled from GCR
+   ├─ New Docker image pulled from Artifact Registry
    ├─ Pods replaced with new version
    ├─ Health checks pass
    └─ Traffic routed to new pods
@@ -92,6 +92,142 @@ gitops/
    ├─ Performance metrics
    ├─ Alerts and notifications
    └─ ArgoCD records final state
+```
+
+## 🤖 Automated CI/CD with ArgoCD
+
+### Zero-Touch Deployment Pipeline
+
+The complete CI/CD workflow is fully automated with no manual Docker deployment required:
+
+**Pipeline Steps:**
+
+1. **Code Push** - Developer pushes code to GitHub
+2. **GitHub Actions Trigger** - CI pipeline starts automatically
+3. **Build & Test** - Service builds and runs tests
+4. **Security Scanning** - Trivy, gosec/bandit security scans
+5. **Push to Artifact Registry** - Image pushed to `us-central1-docker.pkg.dev/fiap-502903/services/SERVICE_NAME:COMMIT_SHA`
+6. **Update GitOps Repository** - CI automatically updates Helm values file with new image tag
+7. **ArgoCD Auto-Sync** - ArgoCD detects GitOps repository change and deploys to GKE
+
+### Required GitHub Secrets
+
+Configure these in your GitHub repository settings:
+
+**Step 1: Apply Terraform to create Workload Identity resources**
+
+First, apply the IAM module to create the Workload Identity Pool, Provider, and CI/CD service account:
+
+```bash
+cd infra
+terraform plan
+terraform apply
+```
+
+**Step 2: Get the actual values from Terraform outputs**
+
+After successful apply, get the real values (don't use placeholders):
+
+```bash
+terraform output workload_identity_provider
+terraform output ci_service_account
+```
+
+This will output something like:
+- `workload_identity_provider`: `projects/fiap-502903/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider`
+- `ci_service_account`: `ci-service-account@fiap-502903.iam.gserviceaccount.com`
+
+**Step 3: Configure GitHub repository secrets**
+
+Via GitHub UI: Settings → Secrets and variables → Actions → New repository secret
+
+Add these secrets with the real values from step 2:
+
+```
+GCP_PROJECT_ID: fiap-502903
+GCP_WORKLOAD_IDENTITY_PROVIDER: <value from terraform output workload_identity_provider>
+GCP_SERVICE_ACCOUNT: <value from terraform output ci_service_account>
+GITHUB_TOKEN: (default GitHub token - no configuration needed)
+```
+
+Or using GitHub CLI:
+```bash
+gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER --body "projects/fiap-502903/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+gh secret set GCP_SERVICE_ACCOUNT --body "ci-service-account@fiap-502903.iam.gserviceaccount.com"
+gh secret set GCP_PROJECT_ID --body "fiap-502903"
+```
+
+**Important**: Never use the placeholder values (`PROJECT_ID/POOL/PROVIDER`) - always get the real values from Terraform outputs after applying the IAM module.
+
+### How It Works
+
+**No manual Docker deployment needed.** The CI pipeline:
+
+1. **Builds** your Docker image with Go/Python toolchain
+2. **Scans** for security vulnerabilities (Trivy, gosec, bandit)
+3. **Pushes** to Google Artifact Registry using Workload Identity
+4. **Updates** `gitops/helm/common-service/values/SERVICE_NAME.yaml` with new image tag
+5. **Commits** the change to the GitOps repository using GitHub token
+6. **ArgoCD** automatically detects the change and syncs to GKE
+
+### CI Pipeline Features
+
+**Go Services (auth, evaluation):**
+- Go 1.21 with dependency caching
+- golangci-lint for linting
+- gosec for security scanning
+- Unit tests with race detector
+- Coverage reporting to Codecov
+- Trivy filesystem and image scanning
+
+**Python Services (analytics, flag, target):**
+- Python 3.11 with pip caching
+- black/isort/flake8 for linting
+- bandit for security scanning
+- pytest for unit tests
+- Coverage reporting to Codecov
+- Trivy filesystem and image scanning
+
+### ArgoCD Configuration
+
+Your ArgoCD applications in `gitops/apps/` are configured to:
+- Monitor the GitOps repository (`specialization-stage4.git`)
+- Auto-sync on changes (automated sync policy)
+- Use the common-service Helm chart
+- Deploy to your GKE cluster (`togglemaster` in `us-central1-a`)
+- Self-heal any manual modifications
+
+### Benefits
+
+- ✅ **Zero-touch deployment** - No manual Docker commands
+- ✅ **GitOps compliance** - All changes tracked in Git
+- ✅ **Automatic rollback** - Revert Git commit to rollback deployment
+- ✅ **Multi-environment** - Use Kustomize overlays for dev/staging/prod
+- ✅ **Self-healing** - ArgoCD maintains desired state
+- ✅ **Security-first** - Automated vulnerability scanning
+- ✅ **Workload Identity** - No hardcoded credentials
+- ✅ **Audit trail** - Complete deployment history in Git
+
+### Example Workflow
+
+```bash
+# Developer makes changes
+git commit -m "feat: add new feature"
+git push origin main
+
+# GitHub Actions automatically:
+# 1. Builds Docker image
+# 2. Runs tests and security scans
+# 3. Pushes to Artifact Registry
+# 4. Updates gitops/helm/common-service/values/analytics-service.yaml
+# 5. Commits change to GitOps repository
+
+# ArgoCD automatically:
+# 6. Detects GitOps repository change
+# 7. Syncs new image to GKE cluster
+# 8. Rolls out new deployment
+
+# No manual intervention required!
 ```
 
 ## 🛠️ ArgoCD Setup for GKE
@@ -271,6 +407,7 @@ spec:
 
 ### Scenario: Update Analytics Service
 
+**Manual Workflow (Old Way):**
 ```bash
 # 1. Modify code
 cd analytics-service
@@ -297,6 +434,25 @@ argocd app list
 # 5. Validate deployment
 kubectl rollout status deployment/analytics-service
 kubectl logs -l app=analytics-service
+```
+
+**Automated Workflow (New Way):**
+```bash
+# 1. Modify code
+cd analytics-service
+# ... make changes ...
+git commit -m "feat: add new analytics feature"
+git push origin main
+
+# That's it! Everything else happens automatically:
+# - GitHub Actions builds, tests, scans, and pushes image
+# - CI updates GitOps repository with new image tag
+# - ArgoCD detects change and deploys to GKE
+# - No manual steps required
+
+# 2. Monitor deployment (optional)
+argocd app get analytics-service
+kubectl rollout status deployment/analytics-service
 ```
 
 ## 🧪 Validation and Testing
@@ -520,3 +676,133 @@ kubectl apply -f backup-argocd.yaml
 - [GitOps Principles](https://www.gitops.tech/)
 - [GKE Documentation](https://cloud.google.com/kubernetes-engine)
 - [Helm Best Practices](https://helm.sh/docs/chart_best_practices/)
+
+
+gcloud container node-pools describe togglemaster-gke-node-pool --cluster=togglemaster-gke --zone=us-central1-a-a --format=json
+
+
+1. Confirm the real values first
+Before configuring anything, GCP_WORKLOAD_IDENTITY_PROVIDER still has literal placeholders (PROJECT_ID/POOL/PROVIDER) — don't paste it as-is. Get the real path:
+
+terraform output workload_identity_provider
+
+If that's empty (as it was earlier), the WIF pool/provider Terraform resources haven't been applied yet — go back and run terraform apply on that module first, or get it directly from GCP:
+
+gcloud iam workload-identity-pools providers describe PROVIDER_ID \
+  --workload-identity-pool=POOL_ID \
+  --location=global \
+  --project=fiap-502903 \
+  --format="value(name)"
+
+configure github env variables
+3. Add these as GitHub repo secrets
+Via UI: Settings → Secrets and variables → Actions → New repository secret, one at a time:
+
+GCP_PROJECT_ID -> fiap-502903
+GCP_WORKLOAD_IDENTITY_PROVIDER-> the real path from step 1
+GCP_SERVICE_ACCOUNT-> ci-service-account@fiap-502903.iam.gserviceaccount.com
+
+gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER --body "projects/123456789012/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+gh secret set GCP_SERVICE_ACCOUNT --body "ci-service-account@fiap-502903.iam.gservicea
+
+gcloud container clusters list
+
+
+
+# Starting ArgoCD on GKE — togglemaster
+
+Cluster: `togglemaster-gke` · Zone: `us-central1-a` · Project: `fiap-502903`
+
+ArgoCD only needs a working GKE cluster to install — it does **not** depend on
+the Workload Identity / IAM setup (that's only required later, for GitHub
+Actions CI to push images to Artifact Registry). You can run this now,
+independent of any pending IAM fixes.
+
+## 1. Point kubectl at the cluster
+
+```bash
+gcloud container clusters get-credentials togglemaster-gke --zone us-central1-a --project fiap-502903
+kubectl get nodes
+```
+
+## 2. Create the namespace + apply ArgoCD config
+
+```bash
+kubectl apply -f gitops/argocd-namespace.yaml
+kubectl apply -f gitops/argocd-config.yaml
+```
+
+## 3. Install ArgoCD (Helm)
+
+```bash
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+
+helm install argocd argo/argo-cd --namespace argocd --version 5.51.0
+```
+
+Wait for pods to come up:
+
+```bash
+kubectl get pods -n argocd -w
+```
+
+## 4. Get the admin password and log in
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+```
+
+In another terminal:
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+argocd login localhost:8080 --username admin --password <password from above>
+```
+
+Access the UI at `https://localhost:8080`.
+
+## 5. Connect the GitHub repo
+
+Use a GitHub **Personal Access Token**, not your account password — GitHub no
+longer accepts plain passwords for git operations.
+
+```bash
+argocd repo add https://github.com/andre-svager/specialization-stage4.git \
+  --name gitops-repo \
+  --username andre-svager \
+  --password <GitHub Personal Access Token>
+```
+
+## 6. Deploy the app-of-apps root
+
+```bash
+kubectl apply -f gitops/apps/argocd-root.yaml
+```
+
+`argocd-root` watches `gitops/apps/` with `automated: { prune: true, selfHeal: true }`,
+so this single apply cascades into ArgoCD creating and syncing **every**
+`Application` manifest in that folder — all 5 microservices plus Postgres
+(once `postgres-app.yaml` is pushed). No need to `kubectl apply` each service
+app individually.
+
+## 7. Verify
+
+```bash
+argocd app list
+kubectl get pods -n db-infra
+kubectl get pods -n default
+```
+
+---
+
+## Notes / gotchas
+
+- The correct cluster location is **`us-central1-a`** (a zone, not a region).
+  The project's `.github/workflows/ci-*.yml` files currently reference
+  `location: us-central1` and `cluster_name: togglemaster` — both need
+  correcting to `us-central1-a` / `togglemaster-gke` to match the real
+  cluster.
+- Workload Identity / IAM setup is a separate concern from starting ArgoCD —
+  it's only needed once CI needs to push images to Artifact Registry.

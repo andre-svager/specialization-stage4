@@ -14,9 +14,7 @@ variable "gke_node_roles" {
   default = [
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter",
-    "roles/monitoring.viewer",
-    "roles/stackdriver.resourceUser",
-    "roles/objstorage.viewer", # For pulling images from GCR
+    "roles/storage.objectViewer", # For pulling images from Artifact Registry
   ]
 }
 

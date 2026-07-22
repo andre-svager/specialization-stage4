@@ -2,7 +2,7 @@
 serviceName: auth-service
 
 image:
-  repository: 973397181776.dkr.ecr.us-east-1.amazonaws.com/auth-service
+  repository: us-central1-a-docker.pkg.dev/fiap-502903/services/auth-service
 
 podAnnotations:
   prometheus.io/scrape: "true"
@@ -14,15 +14,7 @@ service:
   targetPort: 8001
 
 ingress:
-  hosts:
-    - host: auth.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - secretName: auth-tls
-      hosts:
-        - auth.example.com
+  enabled: false
 
 autoscaling:
   minReplicas: 1
@@ -33,13 +25,19 @@ env:
     value: "INFO"
   - name: ENVIRONMENT
     value: "staging"
+  - name: PORT
+    value: "8001"
+  - name: MASTER_KEY
+    value: "admin-secreto-123"
 
 database:
   enabled: true
   secretName: auth-db-credentials
   createSecret: false
-  host: staging-auth-db.c8k5zq8g0qxw.us-east-1.amazonaws.com
+  host: postgres.db-infra.svc.cluster.local
+  port: 5432
   name: auth_db
+  user: auth_service
 
 livenessProbe:
   httpGet:

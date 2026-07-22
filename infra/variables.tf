@@ -1,6 +1,7 @@
 variable "project_id" {
   description = "GCP project ID"
   type        = string
+  default = "fiap-502903"
 }
 
 variable "region" {
@@ -70,23 +71,6 @@ variable "machine_type" {
   description = "Machine type for GKE nodes"
   type        = string
   default     = "e2-medium"
-}
-
-variable "postgres_admin_password" {
-  description = "Password for the Postgres admin user"
-  type        = string
-  sensitive   = true
-}
-
-variable "service_db_passwords" {
-  description = "Map of service keys to DB passwords (e.g. { auth=..., flag=..., target=... })"
-  type        = map(string)
-  sensitive   = true
-  default = {
-    auth   = "change-me-auth-password"
-    flag   = "change-me-flag-password"
-    target = "change-me-target-password"
-  }
 }
 
 variable "kubeconfig_path" {

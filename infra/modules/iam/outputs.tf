@@ -10,3 +10,13 @@ output "microservice_service_accounts" {
     service => google_service_account.microservices[service].email
   }
 }
+
+output "workload_identity_provider" {
+  description = "Workload Identity Provider path for GitHub Actions"
+  value       = google_iam_workload_identity_pool_provider.github_actions.name
+}
+
+output "ci_service_account" {
+  description = "Email of the CI/CD service account for GitHub Actions"
+  value       = google_service_account.ci_cd.email
+}
