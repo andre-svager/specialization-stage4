@@ -147,7 +147,7 @@ jobs:
         env:
           AR_HOST: us-central1-docker.pkg.dev
           PROJECT_ID: ${{ secrets.gcp_project_id }}
-          REPO: services
+          REPO: ${{ inputs.service_name }}
           IMAGE_NAME: ${{ inputs.service_name }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
