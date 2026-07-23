@@ -34,7 +34,8 @@ func main() {
 
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
-		log.Fatal("REDIS_URL deve ser definida (ex: redis://localhost:6379)")
+		redisURL = "redis://redis:6379"
+		log.Println("REDIS_URL não definido; usando redis://redis:6379")
 	}
 
 	flagSvcURL := os.Getenv("FLAG_SERVICE_URL")
@@ -83,16 +84,20 @@ func main() {
 
 	// --- Inicializa Clientes ---
 
-	// Cliente Redis
+	// Cliente Redis (opcional)
+	var rdb *redis.Client
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
-		log.Fatalf("Não foi possível parsear a URL do Redis: %v", err)
+		log.Printf("Não foi possível parsear a URL do Redis '%s': %v", redisURL, err)
+	} else {
+		rdb = redis.NewClient(opt)
+		if _, err := rdb.Ping(ctx).Result(); err != nil {
+			log.Printf("Redis indisponível em %s, continuando sem cache: %v", redisURL, err)
+			rdb = nil
+		} else {
+			log.Println("Conectado ao Redis com sucesso!")
+		}
 	}
-	rdb := redis.NewClient(opt)
-	if _, err := rdb.Ping(ctx).Result(); err != nil {
-		log.Fatalf("Não foi possível conectar ao Redis: %v", err)
-	}
-	log.Println("Conectado ao Redis com sucesso!")
 
 	// Cliente HTTP (com timeout)
 	httpClient := &http.Client{

@@ -54,7 +54,7 @@ Ele funciona da seguinte forma:
     
     # --- Configuração da AWS (Obrigatório para o desafio) ---
     # Cole a URL da fila SQS que você criou no console da AWS
-    AWS_SQS_URL="[https://sqs.us-east-1.amazonaws.com/973397181776/sua-fila](https://sqs.us-east-1.amazonaws.com/973397181776/sua-fila)"
+    QUEUE="[https://sqs.us-east-1.amazonaws.com/973397181776/sua-fila](https://sqs.us-east-1.amazonaws.com/973397181776/sua-fila)"
     
     # Região da sua fila SQS
     AWS_REGION="us-east-1" 
