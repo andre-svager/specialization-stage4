@@ -277,6 +277,7 @@ remove any `depends_on` on the data source once the cluster already exists.
 - [Helm Best Practices](https://helm.sh/docs/chart_best_practices/)
 
 Lessons learned
+
 Artifact Registry hostnames use the region, not the zone. The correct format is us-central1-docker.pkg.dev
 To find usages
 
@@ -284,3 +285,5 @@ To find usages
 
 
 kubectl run curl-test --image=curlimages/curl -n default -it --rm -- curl http://auth-service.default.svc.cluster.local:8001/health
+
+kubectl logs flag-service-6cb7bc566-hh8bl -n default --previous --tail=20
