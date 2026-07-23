@@ -2,7 +2,7 @@
 serviceName: auth-service
 
 image:
-  repository: us-central1-docker.pkg.dev/fiap-502903/services/auth-service
+  repository: us-central1-docker.pkg.dev/fiap-502903/auth-service/auth-service
 
 podAnnotations:
   prometheus.io/scrape: "true"

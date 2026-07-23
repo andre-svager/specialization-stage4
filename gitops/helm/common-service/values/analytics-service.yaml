@@ -2,10 +2,7 @@
 serviceName: analytics-service
 
 image:
-  repository: 973397181776.dkr.ecr.us-east-1.amazonaws.com/analytics-service
-
-imagePullSecrets:
-  - name: ecr-secret
+  repository: us-central1-docker.pkg.dev/fiap-502903/analytics-service/analytics-service
 
 podAnnotations:
   prometheus.io/scrape: "true"
@@ -32,16 +29,16 @@ env:
     value: "INFO"
   - name: ENVIRONMENT
     value: "staging"
-  - name: AWS_REGION
-    value: "us-east-1"
-  - name: DYNAMODB_TABLE_NAME
+  - name: PORT
+    value: "8005"
+  - name: GCP_PROJECT_ID
+    value: "fiap-502903"
+  - name: GCP_PUBSUB_TOPIC
+    value: "toggle-master-analytics-events"
+  - name: GCP_PUBSUB_SUBSCRIPTION
+    value: "toggle-master-analytics-worker-sub"
+  - name: GCP_FIRESTORE_COLLECTION
     value: "ToggleMasterAnalytics"
-  - name: AWS_DYNAMODB_TABLE
-    value: "ToggleMasterAnalytics"
-  - name: SQS_QUEUE_URL
-    value: "https://sqs.us-east-1.amazonaws.com/973397181776/staging-evaluation-queue.fifo"
-  - name: AWS_SQS_URL
-    value: "https://sqs.us-east-1.amazonaws.com/973397181776/staging-evaluation-queue.fifo"
 
 database:
   enabled: false
