@@ -27,8 +27,10 @@ env:
     value: "staging"
   - name: PORT
     value: "8001"
+  - name: MASTER_KEY
+    value: "admin-secreto-123"
   - name: GCP_PROJECT_ID
-    value: "fiap-502903"
+    value: "fiap-502903"  
 
 database:
   enabled: true
