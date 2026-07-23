@@ -15,7 +15,7 @@ on:
       - '.github/workflows/ci-python-reusable.yml'
 
 permissions:
-  contents: read
+  contents: write
   security-events: write
   packages: read
   id-token: write
