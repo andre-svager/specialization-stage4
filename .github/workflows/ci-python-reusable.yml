@@ -182,31 +182,34 @@ jobs:
         env:
           SERVICE_NAME: ${{ inputs.service_name }}
           IMAGE_URI: ${{ env.image_uri }}
-          COMMIT_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.gh_token }}
         run: |
-          # Clone GitOps repository
           git clone https://x-access-token:${GITHUB_TOKEN}@github.com/andre-svager/specialization-stage4.git gitops-repo
           cd gitops-repo
-          
-          # Update image tag in Helm values file
+          git checkout main
+
           VALUES_FILE="gitops/helm/common-service/values/${SERVICE_NAME}.yaml"
-          if [ -f "$VALUES_FILE" ]; then
-            # Update image repository and tag
-            yq eval ".image.repository = \"${IMAGE_URI%:*}\"" -i "$VALUES_FILE"
-            yq eval ".image.tag = \"${IMAGE_URI##*:}\"" -i "$VALUES_FILE"
-            
-            # Commit and push changes
-            git config user.name "GitHub Actions"
-            git config user.email "actions@github.com"
-            git add "$VALUES_FILE"
-            git commit -m "ci: update ${SERVICE_NAME} image to ${IMAGE_URI##*:}"
-            git push origin main
-            echo "✓ Updated GitOps repository with new image tag"
-          else
-            echo "⚠ Values file not found: $VALUES_FILE"
+          if [ ! -f "$VALUES_FILE" ]; then
+            echo "::error::Values file not found: $VALUES_FILE"
+            exit 1
           fi
-        continue-on-error: true
+
+          IMAGE_TAG="${IMAGE_URI##*:}"
+
+          yq eval ".image.repository = \"${IMAGE_URI%:*}\"" -i "$VALUES_FILE"
+          yq eval ".image.tag = \"${IMAGE_TAG}\"" -i "$VALUES_FILE"
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add "$VALUES_FILE"
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "ci: update ${SERVICE_NAME} image to ${IMAGE_TAG}"
+            git push origin main
+            echo "✓ Updated ${SERVICE_NAME} to ${IMAGE_TAG} on main"
+          fi
 
       - name: Print summary
         run: |
