@@ -3,7 +3,6 @@ serviceName: analytics-service
 
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/analytics-service/analytics-service
-  tag: "42d452a59522af2676493abfc94e67103664d359"
 
 podAnnotations:
   prometheus.io/scrape: "true"
