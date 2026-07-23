@@ -1,14 +1,13 @@
 import os
-import sys
 import threading
 import json
 import uuid
 import time
 import logging
-import boto3
-from botocore.exceptions import NoCredentialsError, ClientError
 from flask import Flask, jsonify
 from dotenv import load_dotenv
+from google.cloud import firestore
+from google.cloud import pubsub_v1
 
 # Configura o logging
 logging.basicConfig(
@@ -21,106 +20,72 @@ log = logging.getLogger(__name__)
 load_dotenv()
 
 # --- Configuração ---
-AWS_REGION = os.getenv("AWS_REGION")
-SQS_QUEUE_URL = os.getenv("AWS_SQS_URL")
-DYNAMODB_TABLE_NAME = os.getenv("AWS_DYNAMODB_TABLE")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
+GCP_PUBSUB_SUBSCRIPTION = os.getenv("GCP_PUBSUB_SUBSCRIPTION")
+GCP_FIRESTORE_COLLECTION = os.getenv("GCP_FIRESTORE_COLLECTION", "ToggleMasterAnalytics")
+GCP_REGION = os.getenv("GCP_REGION", "us-central1")
 
+if not all([GCP_PROJECT_ID, GCP_PUBSUB_SUBSCRIPTION]):
+    log.critical("Erro: GCP_PROJECT_ID e GCP_PUBSUB_SUBSCRIPTION devem ser definidos.")
+    raise RuntimeError("Missing GCP configuration")
 
-if not all([AWS_REGION, SQS_QUEUE_URL, DYNAMODB_TABLE_NAME]):
-    log.critical("Erro: AWS_REGION, AWS_SQS_URL, e AWS_DYNAMODB_TABLE devem ser definidos.")
-    sys.exit(1)
-
-# --- Clientes Boto3 ---
-# Criamos a sessão uma vez
+# --- Clientes GCP ---
 try:
-    session = boto3.Session(
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_REGION,
-    )
-
-    sqs_client = session.client("sqs", endpoint_url=SQS_QUEUE_URL)
-    dynamodb_client = session.client("dynamodb")
-
-    log.info(f"Clientes Boto3 inicializados na região {AWS_REGION}")
-except NoCredentialsError:
-    log.critical("Credenciais da AWS não encontradas. Verifique seu ambiente.")
-    sys.exit(1)
+    firestore_client = firestore.Client(project=GCP_PROJECT_ID)
+    subscriber = pubsub_v1.SubscriberClient()
+    subscription_path = subscriber.subscription_path(GCP_PROJECT_ID, GCP_PUBSUB_SUBSCRIPTION)
+    log.info("Clientes GCP inicializados com sucesso.")
 except Exception as e:
-    log.critical(f"Erro ao inicializar o Boto3: {e}")
-    sys.exit(1)
+    log.critical(f"Erro ao inicializar clientes GCP: {e}")
+    raise
 
 
-# --- SQS Worker ---
+# --- Pub/Sub Worker ---
 
-
-def process_message(message):
-    """Processa uma única mensagem SQS e a insere no DynamoDB """
+def process_message(message: pubsub_v1.subscriber.message.Message):
+    """Processa uma única mensagem Pub/Sub e a grava no Firestore."""
     try:
-        log.info(f"Processando mensagem ID: {message['MessageId']}")
-        body = json.loads(message["Body"])
+        log.info(f"Processando mensagem ID: {message.message_id}")
+        body = json.loads(message.data.decode("utf-8"))
 
-        # Gera um ID único para o item no DynamoDB
         event_id = str(uuid.uuid4())
+        document_ref = firestore_client.collection(GCP_FIRESTORE_COLLECTION).document(event_id)
+        document_ref.set({
+            "event_id": event_id,
+            "user_id": body.get("user_id", ""),
+            "flag_name": body.get("flag_name", ""),
+            "result": body.get("result", False),
+            "timestamp": body.get("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
+        })
 
-        # Constrói o item no formato do DynamoDB
-        item = {
-            "event_id": {"S": event_id},
-            "user_id": {"S": body["user_id"]},
-            "flag_name": {"S": body["flag_name"]},
-            "result": {"BOOL": body["result"]},
-            "timestamp": {"S": body["timestamp"]},
-        }
-
-        # Insere no DynamoDB
-        dynamodb_client.put_item(TableName=DYNAMODB_TABLE_NAME, Item=item)
-
-        log.info(f"Evento {event_id} (Flag: {body['flag_name']}) salvo no DynamoDB.")
-
-        # Se tudo deu certo, deleta a mensagem da fila
-        sqs_client.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=message["ReceiptHandle"])
+        log.info(f"Evento {event_id} (Flag: {body.get('flag_name', '')}) salvo no Firestore.")
+        message.ack()
 
     except json.JSONDecodeError:
-        log.error(f"Erro ao decodificar JSON da mensagem ID: {message['MessageId']}")
-        # Não deleta a mensagem, pode ser uma "poison pill"
-    except ClientError as e:
-        log.error(f"Erro do Boto3 (DynamoDB ou SQS) ao processar {message['MessageId']}: {e}")
-        # Não deleta a mensagem, tenta novamente
+        log.error(f"Erro ao decodificar JSON da mensagem ID: {message.message_id}")
+        message.nack()
     except Exception as e:
-        log.error(f"Erro inesperado ao processar {message['MessageId']}: {e}")
-        # Não deleta a mensagem, tenta novamente
+        log.error(f"Erro inesperado ao processar {message.message_id}: {e}")
+        message.nack()
 
 
-def sqs_worker_loop():
-    """Loop principal do worker que ouve a fila SQS"""
-    log.info("Iniciando o worker SQS...")
-    while True:
-        try:
-            # Long-polling: espera até 20s por mensagens
-            response = sqs_client.receive_message(
-                QueueUrl=SQS_QUEUE_URL,
-                MaxNumberOfMessages=10,  # Processa em lotes de até 10
-                WaitTimeSeconds=20,
-            )
+def pubsub_worker_loop():
+    """Loop principal do worker que ouve a assinatura Pub/Sub."""
+    log.info("Iniciando o worker Pub/Sub...")
 
-            messages = response.get("Messages", [])
-            if not messages:
-                # Nenhuma mensagem, continua o loop
-                continue
+    def callback(message: pubsub_v1.subscriber.message.Message) -> None:
+        process_message(message)
 
-            log.info(f"Recebidas {len(messages)} mensagens.")
+    streaming_pull_future = subscriber.subscribe(subscription_path, callback=callback)
+    log.info(f"Conectado à assinatura Pub/Sub: {subscription_path}")
 
-            for message in messages:
-                process_message(message)
-
-        except ClientError as e:
-            log.error(f"Erro do Boto3 no loop principal do SQS: {e}")
-            time.sleep(10)  # Pausa antes de tentar novamente
-        except Exception as e:
-            log.error(f"Erro inesperado no loop principal do SQS: {e}")
-            time.sleep(10)
+    try:
+        streaming_pull_future.result()
+    except KeyboardInterrupt:
+        streaming_pull_future.cancel()
+    except Exception as e:
+        log.error(f"Erro no loop principal do Pub/Sub: {e}")
+        raise
 
 
 # --- Servidor Flask (Apenas para Health Check) ---
@@ -138,12 +103,12 @@ def health():
 
 
 def start_worker():
-    """Inicia o worker SQS em uma thread separada"""
-    worker_thread = threading.Thread(target=sqs_worker_loop, daemon=True)
+    """Inicia o worker Pub/Sub em uma thread separada."""
+    worker_thread = threading.Thread(target=pubsub_worker_loop, daemon=True)
     worker_thread.start()
 
 
-# Inicia o worker SQS em uma thread de background
+# Inicia o worker Pub/Sub em uma thread de background
 # Isso garante que ele inicie tanto com 'flask run' quanto com 'gunicorn'
 start_worker()
 
