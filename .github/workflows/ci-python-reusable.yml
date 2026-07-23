@@ -150,9 +150,8 @@ jobs:
         run: |
           cd ${{ inputs.service_path }}
           IMAGE_URI="$AR_HOST/$PROJECT_ID/$REPO/$IMAGE_NAME"
-          docker build -t "$IMAGE_URI:$IMAGE_TAG" -t "$IMAGE_URI:latest" .
+          docker build -t "$IMAGE_URI:$IMAGE_TAG" .
           docker push "$IMAGE_URI:$IMAGE_TAG"
-          docker push "$IMAGE_URI:latest"
           echo "image_uri=$IMAGE_URI:$IMAGE_TAG" >> $GITHUB_ENV
 
       - name: Create deployment artifact
