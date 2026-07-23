@@ -38,11 +38,11 @@ env:
   - name: PUBSUB_TOPIC
     value: "toggle-master-analytics-events"  
   - name: REDIS_URL
-    value: "redis://redis.default.svc.cluster.local:6379"
+    value: "redis://redis:6379"
   - name: FLAG_SERVICE_URL
-    value: "http://flag-service.default.svc.cluster.local:8002"
+    value: "http://flag-service:8002"
   - name: TARGETING_SERVICE_URL
-    value: "http://target-service.default.svc.cluster.local:8003"
+    value: "http://target-service:8003"
 
 livenessProbe:
   httpGet:
