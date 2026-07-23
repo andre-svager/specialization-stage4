@@ -297,3 +297,16 @@ kubectl apply -f gitops/apps/argocd-root.yaml
 
 when resorce not found
 kubectl get pods -n default -l app.kubernetes.io/name=evaluation-service
+
+> Verify wty images not pulled from Argocd
+kubectl get pods -n default -l app.kubernetes.io/name=evaluation-service
+
+>>> evaluation-service-86cd578c78-l75wh   0/1     CrashLoopBackOff   4 (35s ago)   115s
+
+kubectl describe pod <pod-name> -n default | grep -i image
+>>>
+´´´
+     Image:          us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service:latest
+    Image ID:       us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service@sha256:9029d53f9e15da88b7f3fb77642f9fa40f2e3b306308835438ed4478f8d03446
+  Normal   Pulled     96s (x6 over 4m30s)   kubelet            Container image "us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service:latest" already present on machine and can be accessed by the pod
+´´´
