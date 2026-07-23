@@ -172,3 +172,4 @@ Você verá os itens que o worker acabou de inserir.
 ```bash
 docker compose up -d --no-deps --build analytics-service
 ```
+# ci trigger Thu Jul 23 08:13:54 PM -03 2026
