@@ -1,6 +1,12 @@
 # Analytics Service - Specific Values
 serviceName: analytics-service
 
+serviceAccount:
+  create: true
+  name: analytics-service
+  annotations:
+    iam.gke.io/gcp-service-account: analytics-service@fiap-502903.iam.gserviceaccount.com
+
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/analytics-service/analytics-service
 
