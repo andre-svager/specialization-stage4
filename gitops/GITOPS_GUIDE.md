@@ -281,3 +281,6 @@ Artifact Registry hostnames use the region, not the zone. The correct format is 
 To find usages
 
  % find . -path "*/.github/workflows*" -name "*.yml" -exec grep -Hn "us-central1-a" {} \;
+
+
+kubectl run curl-test --image=curlimages/curl -n default -it --rm -- curl http://auth-service.default.svc.cluster.local:8001/health
