@@ -287,3 +287,13 @@ To find usages
 kubectl run curl-test --image=curlimages/curl -n default -it --rm -- curl http://auth-service.default.svc.cluster.local:8001/health
 
 kubectl logs flag-service-6cb7bc566-hh8bl -n default --previous --tail=20
+
+kubectl get application flag-service -n argocd -o jsonpath='{.status.sync.status} {.status.health.status}'
+
+git checkout main
+git merge feature/gitops
+git push origin main
+kubectl apply -f gitops/apps/argocd-root.yaml
+
+when resorce not found
+kubectl get pods -n default -l app.kubernetes.io/name=evaluation-service

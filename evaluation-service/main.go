@@ -7,9 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 )
@@ -20,8 +17,7 @@ var ctx = context.Background()
 // App struct para injeção de dependência
 type App struct {
 	RedisClient         *redis.Client
-	SqsSvc              *sqs.SQS
-	SqsQueueURL         string
+	Publisher           EventPublisher
 	HttpClient          *http.Client
 	FlagServiceURL      string
 	TargetingServiceURL string
@@ -51,18 +47,42 @@ func main() {
 		log.Fatal("TARGETING_SERVICE_URL deve ser definida")
 	}
 
-	// SQS é opcional no dev local, mas obrigatório em prod
-	sqsQueueURL := os.Getenv("AWS_SQS_URL")
-	awsRegion := os.Getenv("AWS_REGION")
-	if sqsQueueURL == "" {
-		log.Println("Atenção: AWS_SQS_URL não definida. Eventos não serão enviados.")
-	}
-	if awsRegion == "" && sqsQueueURL != "" {
-		log.Fatal("AWS_REGION deve ser definida para usar SQS")
+	// --- Configuração de fila (agnóstica de provedor) ---
+	var publisher EventPublisher = noopPublisher{}
+
+	switch provider := os.Getenv("QUEUE_PROVIDER"); provider {
+	case "sqs":
+		queueURL := os.Getenv("AWS_SQS_URL")
+		region := os.Getenv("AWS_REGION")
+		if queueURL == "" || region == "" {
+			log.Fatal("AWS_SQS_URL e AWS_REGION devem ser definidos quando QUEUE_PROVIDER=sqs")
+		}
+		p, err := newSQSPublisher(queueURL, region)
+		if err != nil {
+			log.Fatalf("Não foi possível criar cliente SQS: %v", err)
+		}
+		publisher = p
+		log.Println("Publisher SQS inicializado com sucesso.")
+
+	case "pubsub":
+		projectID := os.Getenv("GCP_PROJECT_ID")
+		topic := os.Getenv("PUBSUB_TOPIC")
+		if projectID == "" || topic == "" {
+			log.Fatal("GCP_PROJECT_ID e PUBSUB_TOPIC devem ser definidos quando QUEUE_PROVIDER=pubsub")
+		}
+		p, err := newPubSubPublisher(ctx, projectID, topic)
+		if err != nil {
+			log.Fatalf("Não foi possível criar cliente Pub/Sub: %v", err)
+		}
+		publisher = p
+		log.Println("Publisher Pub/Sub inicializado com sucesso.")
+
+	default:
+		log.Println("Atenção: QUEUE_PROVIDER não definido. Eventos não serão enviados.")
 	}
 
 	// --- Inicializa Clientes ---
-	
+
 	// Cliente Redis
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -74,17 +94,6 @@ func main() {
 	}
 	log.Println("Conectado ao Redis com sucesso!")
 
-	// Cliente SQS (AWS SDK)
-	var sqsSvc *sqs.SQS
-	if sqsQueueURL != "" {
-		sess, err := session.NewSession(&aws.Config{Region: aws.String(awsRegion)})
-		if err != nil {
-			log.Fatalf("Não foi possível criar sessão AWS: %v", err)
-		}
-		sqsSvc = sqs.New(sess)
-		log.Println("Cliente SQS inicializado com sucesso.")
-	}
-
 	// Cliente HTTP (com timeout)
 	httpClient := &http.Client{
 		Timeout: 5 * time.Second,
@@ -93,8 +102,7 @@ func main() {
 	// Cria a instância da App
 	app := &App{
 		RedisClient:         rdb,
-		SqsSvc:              sqsSvc,
-		SqsQueueURL:         sqsQueueURL,
+		Publisher:           publisher,
 		HttpClient:          httpClient,
 		FlagServiceURL:      flagSvcURL,
 		TargetingServiceURL: targetingSvcURL,
