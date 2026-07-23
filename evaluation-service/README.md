@@ -1,6 +1,6 @@
 # evaluation-service (Go)
 
-Este é o serviço de avaliação, o "caminho quente" (hot path) do projeto ToggleMaster. É o único endpoint que os clientes finais (ex: seu app mobile, seu site) devem chamar.
+Este serviço de avaliação, o "caminho quente" (hot path) do projeto ToggleMaster. É o único endpoint que os clientes finais (ex: seu app mobile, seu site) devem chamar.
 
 Ele é otimizado para alta velocidade e baixa latência usando **cache em Redis**.
 
