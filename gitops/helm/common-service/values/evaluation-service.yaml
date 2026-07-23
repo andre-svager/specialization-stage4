@@ -3,7 +3,6 @@ serviceName: evaluation-service
 
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service
-  tag: "3b29f8747fc0dd333c30b6cc012456ddb6a07c72"
 
 podAnnotations:
   prometheus.io/scrape: "true"
