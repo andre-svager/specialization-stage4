@@ -66,3 +66,9 @@ module "artifact_registry" {
     "target-service",
   ]
 }
+
+module "infrastructure" {
+  source     = "./modules/infrastructure"
+  project_id = var.project_id
+  region     = var.region
+}
