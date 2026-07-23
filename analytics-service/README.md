@@ -1,6 +1,6 @@
 # analytics-service (Python)
 
-Este é o serviço de análise (analytics) do projeto ToggleMaster. Ele é um *worker* de backend e não possui uma API pública (exceto `/health`).
+Este p  serviço de análise (analytics) do projeto ToggleMaster. Ele é um *worker* de backend e não possui uma API pública (exceto `/health`).
 
 Sua única função é:
 1.  Ouvir constantemente o tópico/assinatura do **Google Cloud Pub/Sub** (que o `evaluation-service` preenche).
