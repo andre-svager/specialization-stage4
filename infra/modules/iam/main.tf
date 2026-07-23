@@ -28,6 +28,12 @@ resource "google_project_iam_member" "ci_artifact_registry_writer" {
   member  = "serviceAccount:${google_service_account.ci_cd.email}"
 }
 
+resource "google_project_iam_member" "gke_nodes_artifact_registry_reader" {
+  project = var.project_id
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:staging-gke-sa@fiap-502903.iam.gserviceaccount.com"
+}
+
 resource "google_service_account" "microservices" {
   for_each = { for svc in var.microservices : svc => svc }
 
