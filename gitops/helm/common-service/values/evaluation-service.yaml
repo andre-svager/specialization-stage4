@@ -1,8 +1,15 @@
 # Evaluation Service - Specific Values
 serviceName: evaluation-service
 
+serviceAccount:
+  create: true
+  name: evaluation-service
+  annotations:
+    iam.gke.io/gcp-service-account: evaluation-service@fiap-502903.iam.gserviceaccount.com
+
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service
+  tag: ""
 
 podAnnotations:
   prometheus.io/scrape: "true"
@@ -10,10 +17,11 @@ podAnnotations:
   prometheus.io/path: "/metrics"
 
 service:
-  port: 8080
+  port: 8004
   targetPort: 8004
 
 ingress:
+  enabled: true
   hosts:
     - host: evaluation.example.com
       paths:
@@ -58,9 +66,3 @@ readinessProbe:
   httpGet:
     path: /health
     port: 8004
-
-# Message Queue Configuration
-messageQueue:
-  enabled: true
-  type: pubsub
-  projectId: fiap-502903

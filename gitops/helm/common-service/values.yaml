@@ -8,6 +8,7 @@ replicaCount: 2
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/common-service
   pullPolicy: Always
+  # Set per-service in values/<service>.yaml; CI overwrites with commit SHA on main pushes
   tag: ""
 
 imagePullSecrets: []

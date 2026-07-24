@@ -7,15 +7,17 @@ serviceAccount:
     iam.gke.io/gcp-service-account: analytics-service@fiap-502903.iam.gserviceaccount.com
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/analytics-service/analytics-service
-  tag: c625fc700ecb8866d2e69490c6fe66b4e1b3e09a
+  tag: ""
+
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8005"
   prometheus.io/path: "/metrics"
 service:
-  port: 8080
+  port: 8005
   targetPort: 8005
 ingress:
+  enabled: true
   hosts:
     - host: analytics.example.com
       paths:
