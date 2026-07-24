@@ -1,25 +1,20 @@
 # Analytics Service - Specific Values
 serviceName: analytics-service
-
 serviceAccount:
   create: true
   name: analytics-service
   annotations:
     iam.gke.io/gcp-service-account: analytics-service@fiap-502903.iam.gserviceaccount.com
-
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/analytics-service/analytics-service
-  tag: "42d452a59522af2676493abfc94e67103664d359"
-
+  tag: c625fc700ecb8866d2e69490c6fe66b4e1b3e09a
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8005"
   prometheus.io/path: "/metrics"
-
 service:
   port: 8005
   targetPort: 8005
-
 ingress:
   enabled: true
   hosts:
@@ -31,7 +26,6 @@ ingress:
     - secretName: analytics-tls
       hosts:
         - analytics.example.com
-
 env:
   - name: LOG_LEVEL
     value: "INFO"
@@ -47,15 +41,12 @@ env:
     value: "toggle-master-analytics-worker-sub"
   - name: GCP_FIRESTORE_COLLECTION
     value: "ToggleMasterAnalytics"
-
 database:
   enabled: false
-
 livenessProbe:
   httpGet:
     path: /health
     port: 8005
-
 readinessProbe:
   httpGet:
     path: /health
