@@ -440,3 +440,10 @@ To prove it for your demo video — introduce a genuine CRITICAL vuln temporaril
 Want me to help stage that deliberate-vulnerability test once these fixes are pushed, before you move to the integration tests?
 
 CAHNGE EVAL AND TARGET PORT FROM 8080
+
+
+servicemonitor.yaml template at all — so monitoring.serviceMonitor.enabled: true has been completely inert this whole time, just sitting in values with no template consuming it. It was never actually causing sync failures. Nothing to fix there for now, and no rush — since you're planning real Prometheus/Grafana later, you can leave this value as-is; it'll only matter once you actually add a servicemonitor.yaml template, at which point the CRD needs to exist first (install Prometheus Operator before that template goes live).
+
+
+
+
