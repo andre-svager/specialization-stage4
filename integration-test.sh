@@ -4,7 +4,7 @@ set -e
 AUTH_URL="http://auth-service.default.svc.cluster.local:8001"
 FLAG_URL="http://flag-service.default.svc.cluster.local:8002"
 TARGET_URL="http://target-service.default.svc.cluster.local:8003"
-EVAL_URL="http://evaluation-service.default.svc.cluster.local:8004"
+EVAL_URL="http://evaluation-service.default.svc.cluster.local:8080"
 ANALYTICS_URL="http://analytics-service.default.svc.cluster.local:8080"
 
 MASTER_KEY="admin-secreto-123"

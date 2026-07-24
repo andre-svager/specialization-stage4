@@ -375,6 +375,8 @@ Run it and paste the output — if anything fails partway through, we'll know pr
 kubectl delete pod debug -n default --force --grace-period=0
 kubectl run debug --image=curlimages/curl -n default --restart=Never --rm -i -- sh -s < integration-test.sh
 
+kubectl apply -f gitops/apps/argocd-root.yaml
+
 
 >>>>
 
@@ -436,3 +438,5 @@ git push origin main
 To prove it for your demo video — introduce a genuine CRITICAL vuln temporarily (e.g. pin an old vulnerable dependency version in go.mod/requirements.txt), push, show the pipeline fail at the security step, then revert and show it pass. That's the exact deliverable your brief asks for.
 
 Want me to help stage that deliberate-vulnerability test once these fixes are pushed, before you move to the integration tests?
+
+CAHNGE EVAL AND TARGET PORT FROM 8080
