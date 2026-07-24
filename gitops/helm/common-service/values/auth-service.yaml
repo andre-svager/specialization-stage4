@@ -1,32 +1,25 @@
 # Auth Service - Specific Values
 serviceName: auth-service
-
 serviceAccount:
   create: true
   name: auth-service
   annotations:
     iam.gke.io/gcp-service-account: auth-service@fiap-502903.iam.gserviceaccount.com
-
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/auth-service/auth-service
-  tag: ""
-
+  tag: "6dacc89638b9f17c087a7f181e06ecd1501cb2c7"
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8001"
   prometheus.io/path: "/metrics"
-
 service:
   port: 8001
   targetPort: 8001
-
 ingress:
   enabled: false
-
 autoscaling:
   minReplicas: 1
   maxReplicas: 3
-
 env:
   - name: LOG_LEVEL
     value: "INFO"
@@ -40,8 +33,7 @@ env:
     valueFrom:
       secretKeyRef:
         name: auth-service-secrets
-        key: MASTER_KEY  
-
+        key: MASTER_KEY
 database:
   enabled: true
   secretName: auth-db-credentials
@@ -50,12 +42,10 @@ database:
   port: 5432
   name: auth_db
   user: auth_service
-
 livenessProbe:
   httpGet:
     path: /health
     port: 8001
-
 readinessProbe:
   httpGet:
     path: /health
