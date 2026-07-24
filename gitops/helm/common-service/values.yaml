@@ -6,9 +6,9 @@ serviceName: common-service
 replicaCount: 2
 
 image:
-  repository: 973397181776.dkr.ecr.us-east-1.amazonaws.com/common-service
-  pullPolicy: IfNotPresent
-  tag: "latest"
+  repository: us-central1-docker.pkg.dev/fiap-502903/common-service
+  pullPolicy: Always
+  tag: ""
 
 imagePullSecrets: []
 nameOverride: ""
@@ -89,7 +89,7 @@ database:
   enabled: false
   secretName: ""
   createSecret: false
-  host: postgres.default
+  host: postgres.db-infra.svc.cluster.local
   port: 5432
   name: common_db
   user: postgres
