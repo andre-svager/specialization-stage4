@@ -9,6 +9,7 @@ serviceAccount:
 
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/analytics-service/analytics-service
+  tag: "latest"
 
 podAnnotations:
   prometheus.io/scrape: "true"

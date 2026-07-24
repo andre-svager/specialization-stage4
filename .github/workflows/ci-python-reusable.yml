@@ -178,7 +178,13 @@ jobs:
           path: deployment-info.json
         continue-on-error: true
 
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
       - name: Update GitOps repository with new image tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           SERVICE_NAME: ${{ inputs.service_name }}
           IMAGE_URI: ${{ env.image_uri }}
