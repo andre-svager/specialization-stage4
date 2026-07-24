@@ -276,6 +276,45 @@ remove any `depends_on` on the data source once the cluster already exists.
 - [GKE Docs](https://cloud.google.com/kubernetes-engine)
 - [Helm Best Practices](https://helm.sh/docs/chart_best_practices/)
 
+
+PTHON REUSABLE
+
+- name: Update GitOps repository with new image tag
+        env:
+          SERVICE_NAME: ${{ inputs.service_name }}
+          IMAGE_URI: ${{ env.image_uri }}
+          COMMIT_SHA: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ secrets.gh_token }}
+        run: |
+          # Clone GitOps repository
+          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/andre-svager/specialization-stage4.git gitops-repo
+          cd gitops-repo
+          
+          # Update image tag in Helm values file
+          VALUES_FILE="gitops/helm/common-service/values/${SERVICE_NAME}.yaml"
+          if [ -f "$VALUES_FILE" ]; then
+            # Update image repository and tag
+            yq eval ".image.repository = \"${IMAGE_URI%:*}\"" -i "$VALUES_FILE"
+            yq eval ".image.tag = \"${IMAGE_URI##*:}\"" -i "$VALUES_FILE"
+            
+            # Commit and push changes
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git add "$VALUES_FILE"
+            git commit -m "ci: update ${SERVICE_NAME} image to ${IMAGE_URI##*:}"
+            git push origin main
+            echo "✓ Updated GitOps repository with new image tag"
+          else
+            echo "⚠ Values file not found: $VALUES_FILE"
+          fi
+        continue-on-error: true
+
+
+
+
+
+
+
 Lessons learned
 
 Artifact Registry hostnames use the region, not the zone. The correct format is us-central1-docker.pkg.dev
@@ -310,3 +349,22 @@ kubectl describe pod <pod-name> -n default | grep -i image
     Image ID:       us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service@sha256:9029d53f9e15da88b7f3fb77642f9fa40f2e3b306308835438ed4478f8d03446
   Normal   Pulled     96s (x6 over 4m30s)   kubelet            Container image "us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service:latest" already present on machine and can be accessed by the pod
 ´´´
+
+configure user and pass locally
+git config --global credential.helper store
+
+
+grep -A3 "^image:" gitops/helm/common-service/values/evaluation-service.yaml
+image: repository: us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service
+podAnnotations:
+
+grep "pullPolicy" gitops/helm/common-service/values.yaml gitops/helm/common-service/templates/deployment.yaml
+gitops/helm/common-service/values.yaml:  pullPolicy: IfNotPresent
+
+
+git add gitops/helm/common-service/templates/serviceaccount.yaml gitops/helm/common-service/values/analytics-service.yaml
+git commit -m "fix: bind analytics-service KSA to GCP service account via workload identity"
+git push origin main
+git pull origin main --no-rebase
+git push origin main
+ kubectl apply -f gitops/apps/argocd-root.yaml
