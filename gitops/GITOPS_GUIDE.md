@@ -277,43 +277,6 @@ remove any `depends_on` on the data source once the cluster already exists.
 - [Helm Best Practices](https://helm.sh/docs/chart_best_practices/)
 
 
-PTHON REUSABLE
-
-- name: Update GitOps repository with new image tag
-        env:
-          SERVICE_NAME: ${{ inputs.service_name }}
-          IMAGE_URI: ${{ env.image_uri }}
-          COMMIT_SHA: ${{ github.sha }}
-          GITHUB_TOKEN: ${{ secrets.gh_token }}
-        run: |
-          # Clone GitOps repository
-          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/andre-svager/specialization-stage4.git gitops-repo
-          cd gitops-repo
-          
-          # Update image tag in Helm values file
-          VALUES_FILE="gitops/helm/common-service/values/${SERVICE_NAME}.yaml"
-          if [ -f "$VALUES_FILE" ]; then
-            # Update image repository and tag
-            yq eval ".image.repository = \"${IMAGE_URI%:*}\"" -i "$VALUES_FILE"
-            yq eval ".image.tag = \"${IMAGE_URI##*:}\"" -i "$VALUES_FILE"
-            
-            # Commit and push changes
-            git config user.name "GitHub Actions"
-            git config user.email "actions@github.com"
-            git add "$VALUES_FILE"
-            git commit -m "ci: update ${SERVICE_NAME} image to ${IMAGE_URI##*:}"
-            git push origin main
-            echo "✓ Updated GitOps repository with new image tag"
-          else
-            echo "⚠ Values file not found: $VALUES_FILE"
-          fi
-        continue-on-error: true
-
-
-
-
-
-
 
 Lessons learned
 
@@ -368,3 +331,100 @@ git push origin main
 git pull origin main --no-rebase
 git push origin main
  kubectl apply -f gitops/apps/argocd-root.yaml
+
+
+
+
+
+
+
+
+
+>>>>
+
+INTEGRATED_TEST
+
+ How to run it — two options, both avoid port-forward entirely
+
+Option A — paste directly into a debug pod's interactive shell (fastest, no file transfer needed):
+
+bash
+kubectl run debug --image=curlimages/curl -n default -it --rm --restart=Never -- sh
+
+Once inside, paste the script's contents directly at the prompt (copy from the file), or:
+
+Option B — mount it via a ConfigMap and run it as a one-shot pod (cleaner if you want to save/reuse the test):
+
+bash
+kubectl create configmap integration-test-script -n default --from-file=integration-test.sh=/path/to/integration-test.sh
+kubectl run integration-test --image=curlimages/curl -n default --restart=Never --rm -it \
+  --overrides='{"spec":{"containers":[{"name":"integration-test","image":"curlimages/curl","command":["sh","/scripts/integration-test.sh"],"volumeMounts":[{"name":"script","mountPath":"/scripts"}]}],"volumes":[{"name":"script","configMap":{"name":"integration-test-script"}}]}}'
+What it does
+No jq dependency (extracts the API key via sed, since curlimages/curl doesn't ship jq)
+set -e — stops immediately on the first hard failure, so you know exactly which service broke the chain
+Tests both positive and negative auth cases (valid key accepted, invalid key/no key rejected)
+Runs the full dependency chain in order: auth → flag → target → evaluation
+For analytics-service (async, no direct request/response to test), it tells you exactly which kubectl logs command to run afterward from a separate terminal, plus the gcloud firestore documents list command to confirm the data actually landed
+
+Run it and paste the output — if anything fails partway through, we'll know precisely which link in the chain broke.
+
+>>>>
+
+
+
+TODO
+
+Step 2: SCA (Trivy filesystem scan) — currently fake
+yaml
+- name: SCA - Scan filesystem with Trivy
+  working-directory: ${{ inputs.service_path }}
+  run: trivy fs --severity CRITICAL,HIGH . || true
+
+- name: SCA - Fail if CRITICAL vulnerabilities found
+  working-directory: ${{ inputs.service_path }}
+  run: echo "✓ Trivy filesystem scan completed"
+
+Two problems: || true swallows any real failure, and the second step doesn't actually check anything — it just echoes success unconditionally.
+
+Fix — combine into one real gate:
+
+yaml
+- name: SCA - Scan filesystem with Trivy (fail on CRITICAL)
+  working-directory: ${{ inputs.service_path }}
+  run: trivy fs --severity CRITICAL --exit-code 1 --no-progress .
+
+No || true, no fake follow-up step. --exit-code 1 makes Trivy itself fail the job when a CRITICAL is found. Drop the old "Fail if..." step entirely — this one line replaces both.
+
+Step 3: Docker image scan — same problem, same fix
+yaml
+- name: Scan Docker image with Trivy
+  working-directory: ${{ inputs.service_path }}
+  run: trivy image --input image.tar --severity CRITICAL || true
+
+- name: Fail if Docker image has CRITICAL vulnerabilities
+  working-directory: ${{ inputs.service_path }}
+  run: echo "✓ Trivy Docker image scan completed"
+
+Fix:
+
+yaml
+- name: Scan Docker image with Trivy (fail on CRITICAL)
+  working-directory: ${{ inputs.service_path }}
+  run: trivy image --input image.tar --severity CRITICAL --exit-code 1 --no-progress
+Also worth fixing while in here (same category, not yet flagged as "step 2/3" but same bug)
+gosec -no-fail ./... || true (Go) and bandit ... --exit-code=0 ... || true (Python) — both explicitly disable failure. If you want SAST to actually gate too (your brief requires it, not just SCA):
+bash
+  gosec -fmt=json -out=gosec-report.json ./... 
+  # remove -no-fail, remove || true
+bash
+  bandit -r . -ll --exit-code=1 -f json -o bandit-report.json
+  # remove || true
+Apply to both files, then test it for real
+bash
+git add .github/workflows/ci-go-reusable.yml .github/workflows/ci-python-reusable.yml
+git commit -m "fix: make Trivy scans actually block pipeline on CRITICAL vulnerabilities"
+git push origin main
+
+To prove it for your demo video — introduce a genuine CRITICAL vuln temporarily (e.g. pin an old vulnerable dependency version in go.mod/requirements.txt), push, show the pipeline fail at the security step, then revert and show it pass. That's the exact deliverable your brief asks for.
+
+Want me to help stage that deliberate-vulnerability test once these fixes are pushed, before you move to the integration tests?

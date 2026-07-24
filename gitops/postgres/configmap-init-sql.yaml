@@ -27,6 +27,7 @@ data:
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
     GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO auth_service;
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO auth_service;
 
     \c flag_db
     CREATE TABLE IF NOT EXISTS flags (
@@ -35,6 +36,7 @@ data:
         enabled BOOLEAN DEFAULT false
     );
     GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO flag_service;
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO flag_service;
 
     \c target_db
     CREATE TABLE IF NOT EXISTS events (
@@ -44,3 +46,4 @@ data:
         created_at TIMESTAMP DEFAULT now()
     );
     GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO target_service;
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO target_service;
