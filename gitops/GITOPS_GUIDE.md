@@ -276,6 +276,8 @@ remove any `depends_on` on the data source once the cluster already exists.
 - [GKE Docs](https://cloud.google.com/kubernetes-engine)
 - [Helm Best Practices](https://helm.sh/docs/chart_best_practices/)
 
+
+
 Lessons learned
 
 Artifact Registry hostnames use the region, not the zone. The correct format is us-central1-docker.pkg.dev
@@ -310,3 +312,119 @@ kubectl describe pod <pod-name> -n default | grep -i image
     Image ID:       us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service@sha256:9029d53f9e15da88b7f3fb77642f9fa40f2e3b306308835438ed4478f8d03446
   Normal   Pulled     96s (x6 over 4m30s)   kubelet            Container image "us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service:latest" already present on machine and can be accessed by the pod
 ´´´
+
+configure user and pass locally
+git config --global credential.helper store
+
+
+grep -A3 "^image:" gitops/helm/common-service/values/evaluation-service.yaml
+image: repository: us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service
+podAnnotations:
+
+grep "pullPolicy" gitops/helm/common-service/values.yaml gitops/helm/common-service/templates/deployment.yaml
+gitops/helm/common-service/values.yaml:  pullPolicy: IfNotPresent
+
+
+git add gitops/helm/common-service/templates/serviceaccount.yaml gitops/helm/common-service/values/analytics-service.yaml
+git commit -m "fix: bind analytics-service KSA to GCP service account via workload identity"
+git push origin main
+git pull origin main --no-rebase
+git push origin main
+ kubectl apply -f gitops/apps/argocd-root.yaml
+
+
+
+
+
+
+
+
+
+>>>>
+
+INTEGRATED_TEST
+
+ How to run it — two options, both avoid port-forward entirely
+
+Option A — paste directly into a debug pod's interactive shell (fastest, no file transfer needed):
+
+bash
+kubectl run debug --image=curlimages/curl -n default -it --rm --restart=Never -- sh
+
+Once inside, paste the script's contents directly at the prompt (copy from the file), or:
+
+Option B — mount it via a ConfigMap and run it as a one-shot pod (cleaner if you want to save/reuse the test):
+
+bash
+kubectl create configmap integration-test-script -n default --from-file=integration-test.sh=/path/to/integration-test.sh
+kubectl run integration-test --image=curlimages/curl -n default --restart=Never --rm -it \
+  --overrides='{"spec":{"containers":[{"name":"integration-test","image":"curlimages/curl","command":["sh","/scripts/integration-test.sh"],"volumeMounts":[{"name":"script","mountPath":"/scripts"}]}],"volumes":[{"name":"script","configMap":{"name":"integration-test-script"}}]}}'
+What it does
+No jq dependency (extracts the API key via sed, since curlimages/curl doesn't ship jq)
+set -e — stops immediately on the first hard failure, so you know exactly which service broke the chain
+Tests both positive and negative auth cases (valid key accepted, invalid key/no key rejected)
+Runs the full dependency chain in order: auth → flag → target → evaluation
+For analytics-service (async, no direct request/response to test), it tells you exactly which kubectl logs command to run afterward from a separate terminal, plus the gcloud firestore documents list command to confirm the data actually landed
+
+Run it and paste the output — if anything fails partway through, we'll know precisely which link in the chain broke.
+
+>>>>
+
+
+
+TODO
+
+Step 2: SCA (Trivy filesystem scan) — currently fake
+yaml
+- name: SCA - Scan filesystem with Trivy
+  working-directory: ${{ inputs.service_path }}
+  run: trivy fs --severity CRITICAL,HIGH . || true
+
+- name: SCA - Fail if CRITICAL vulnerabilities found
+  working-directory: ${{ inputs.service_path }}
+  run: echo "✓ Trivy filesystem scan completed"
+
+Two problems: || true swallows any real failure, and the second step doesn't actually check anything — it just echoes success unconditionally.
+
+Fix — combine into one real gate:
+
+yaml
+- name: SCA - Scan filesystem with Trivy (fail on CRITICAL)
+  working-directory: ${{ inputs.service_path }}
+  run: trivy fs --severity CRITICAL --exit-code 1 --no-progress .
+
+No || true, no fake follow-up step. --exit-code 1 makes Trivy itself fail the job when a CRITICAL is found. Drop the old "Fail if..." step entirely — this one line replaces both.
+
+Step 3: Docker image scan — same problem, same fix
+yaml
+- name: Scan Docker image with Trivy
+  working-directory: ${{ inputs.service_path }}
+  run: trivy image --input image.tar --severity CRITICAL || true
+
+- name: Fail if Docker image has CRITICAL vulnerabilities
+  working-directory: ${{ inputs.service_path }}
+  run: echo "✓ Trivy Docker image scan completed"
+
+Fix:
+
+yaml
+- name: Scan Docker image with Trivy (fail on CRITICAL)
+  working-directory: ${{ inputs.service_path }}
+  run: trivy image --input image.tar --severity CRITICAL --exit-code 1 --no-progress
+Also worth fixing while in here (same category, not yet flagged as "step 2/3" but same bug)
+gosec -no-fail ./... || true (Go) and bandit ... --exit-code=0 ... || true (Python) — both explicitly disable failure. If you want SAST to actually gate too (your brief requires it, not just SCA):
+bash
+  gosec -fmt=json -out=gosec-report.json ./... 
+  # remove -no-fail, remove || true
+bash
+  bandit -r . -ll --exit-code=1 -f json -o bandit-report.json
+  # remove || true
+Apply to both files, then test it for real
+bash
+git add .github/workflows/ci-go-reusable.yml .github/workflows/ci-python-reusable.yml
+git commit -m "fix: make Trivy scans actually block pipeline on CRITICAL vulnerabilities"
+git push origin main
+
+To prove it for your demo video — introduce a genuine CRITICAL vuln temporarily (e.g. pin an old vulnerable dependency version in go.mod/requirements.txt), push, show the pipeline fail at the security step, then revert and show it pass. That's the exact deliverable your brief asks for.
+
+Want me to help stage that deliberate-vulnerability test once these fixes are pushed, before you move to the integration tests?
