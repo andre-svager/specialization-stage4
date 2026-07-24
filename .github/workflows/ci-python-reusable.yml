@@ -205,6 +205,7 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "ci: update ${SERVICE_NAME} image tag to ${{ github.sha }} [skip ci]"
+            git pull --rebase origin main
             git push origin HEAD:main
             echo "✓ Updated ${SERVICE_NAME} image tag to ${{ github.sha }} on main"
           fi
