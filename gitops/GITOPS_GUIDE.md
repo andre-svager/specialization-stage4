@@ -446,4 +446,19 @@ servicemonitor.yaml template at all — so monitoring.serviceMonitor.enabled: tr
 
 
 
+MONITORING
 
+
+# Apply the ArgoCD Application
+kubectl apply -f gitops/apps/monitoring-app.yaml
+ 
+# Or sync via ArgoCD CLI/UI
+argocd app create monitoring-stack --file gitops/apps/monitoring-app.yaml
+argocd app sync monitoring-stack
+
+# Apply the ArgoCD Application
+kubectl apply -f gitops/apps/monitoring-app.yaml
+ 
+# Or sync via ArgoCD CLI/UI
+argocd app create monitoring-stack --file gitops/apps/monitoring-app.yaml
+argocd app sync monitoring-stack

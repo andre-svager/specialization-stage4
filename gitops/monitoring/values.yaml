@@ -1,0 +1,14 @@
+# Monitoring stack values
+# This file orchestrates Prometheus, Loki, OpenTelemetry Collector, and Datadog deployment
+
+prometheus:
+  enabled: true
+
+loki:
+  enabled: true
+
+otel-collector:
+  enabled: true
+
+datadog:
+  enabled: false  # Set to true after configuring DATADOG_API_KEY
