@@ -335,6 +335,7 @@ git push origin main
 
 
 
+ kubectl get hpa -n default
 
 
 
@@ -357,6 +358,7 @@ Option B — mount it via a ConfigMap and run it as a one-shot pod (cleaner if y
 
 bash
 kubectl create configmap integration-test-script -n default --from-file=integration-test.sh=/path/to/integration-test.sh
+
 kubectl run integration-test --image=curlimages/curl -n default --restart=Never --rm -it \
   --overrides='{"spec":{"containers":[{"name":"integration-test","image":"curlimages/curl","command":["sh","/scripts/integration-test.sh"],"volumeMounts":[{"name":"script","mountPath":"/scripts"}]}],"volumes":[{"name":"script","configMap":{"name":"integration-test-script"}}]}}'
 What it does
@@ -367,6 +369,12 @@ Runs the full dependency chain in order: auth → flag → target → evaluation
 For analytics-service (async, no direct request/response to test), it tells you exactly which kubectl logs command to run afterward from a separate terminal, plus the gcloud firestore documents list command to confirm the data actually landed
 
 Run it and paste the output — if anything fails partway through, we'll know precisely which link in the chain broke.
+
+
+
+kubectl delete pod debug -n default --force --grace-period=0
+kubectl run debug --image=curlimages/curl -n default --restart=Never --rm -i -- sh -s < integration-test.sh
+
 
 >>>>
 
