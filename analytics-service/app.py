@@ -9,12 +9,27 @@ from dotenv import load_dotenv
 from google.cloud import firestore
 from google.cloud import pubsub_v1
 
+# --- OpenTelemetry Imports ---
+from opentelemetry import trace, metrics, propagation
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.trace import SpanKind, Status, StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
+
 # Configura o logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 log = logging.getLogger(__name__)
+
+# Inject trace_id and span_id into Python standard logs for Loki correlation
+LoggingInstrumentor().instrument(set_logging_format=True)
 
 # Carrega .env para desenvolvimento local
 load_dotenv()
@@ -24,10 +39,25 @@ GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_PUBSUB_SUBSCRIPTION = os.getenv("GCP_PUBSUB_SUBSCRIPTION")
 GCP_FIRESTORE_COLLECTION = os.getenv("GCP_FIRESTORE_COLLECTION", "ToggleMasterAnalytics")
 GCP_REGION = os.getenv("GCP_REGION", "us-central1")
+OTEL_COLLECTOR_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector.monitoring.svc.cluster.local:4317")
 
 if not all([GCP_PROJECT_ID, GCP_PUBSUB_SUBSCRIPTION]):
     log.critical("Erro: GCP_PROJECT_ID e GCP_PUBSUB_SUBSCRIPTION devem ser definidos.")
     raise RuntimeError("Missing GCP configuration")
+
+# --- OTel Setup & TracerProvider Initialization ---
+resource = Resource.create(attributes={
+    ResourceAttributes.SERVICE_NAME: "analytics-service",
+    ResourceAttributes.SERVICE_VERSION: "1.0.0",
+    ResourceAttributes.DEPLOYMENT_ENVIRONMENT: os.getenv("ENVIRONMENT", "production")
+})
+
+tracer_provider = TracerProvider(resource=resource)
+otlp_exporter = OTLPSpanExporter(endpoint=OTEL_COLLECTOR_ENDPOINT, insecure=True)
+tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+trace.set_tracer_provider(tracer_provider)
+
+tracer = trace.get_tracer(__name__, "1.0.0")
 
 # --- Clientes GCP ---
 try:
@@ -43,30 +73,64 @@ except Exception as e:
 # --- Pub/Sub Worker ---
 
 def process_message(message: pubsub_v1.subscriber.message.Message):
-    """Processa uma única mensagem Pub/Sub e a grava no Firestore."""
-    try:
-        log.info(f"Processando mensagem ID: {message.message_id}")
-        body = json.loads(message.data.decode("utf-8"))
+    """Processa uma única mensagem Pub/Sub e a grava no Firestore com tracing OTel."""
+    # 1. Extrai o contexto do trace das propriedades/atributos da mensagem do Pub/Sub
+    carrier = dict(message.attributes) if message.attributes else {}
+    extracted_context = TraceContextTextMapPropagator().extract(carrier=carrier)
 
-        event_id = str(uuid.uuid4())
-        document_ref = firestore_client.collection(GCP_FIRESTORE_COLLECTION).document(event_id)
-        document_ref.set({
-            "event_id": event_id,
-            "user_id": body.get("user_id", ""),
-            "flag_name": body.get("flag_name", ""),
-            "result": body.get("result", False),
-            "timestamp": body.get("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
-        })
+    # 2. Inicia o Span do Worker como CONSUMER ligado ao trace original do publisher
+    with tracer.start_as_current_span(
+        "pubsub.process_message",
+        context=extracted_context,
+        kind=SpanKind.CONSUMER,
+        attributes={
+            "messaging.system": "gcp_pubsub",
+            "messaging.destination": GCP_PUBSUB_SUBSCRIPTION,
+            "messaging.message_id": message.message_id,
+        }
+    ) as span:
+        try:
+            log.info(f"Processando mensagem ID: {message.message_id}")
+            body = json.loads(message.data.decode("utf-8"))
 
-        log.info(f"Evento {event_id} (Flag: {body.get('flag_name', '')}) salvo no Firestore.")
-        message.ack()
+            user_id = body.get("user_id", "")
+            flag_name = body.get("flag_name", "")
+            result = body.get("result", False)
 
-    except json.JSONDecodeError:
-        log.error(f"Erro ao decodificar JSON da mensagem ID: {message.message_id}")
-        message.nack()
-    except Exception as e:
-        log.error(f"Erro inesperado ao processar {message.message_id}: {e}")
-        message.nack()
+            span.set_attribute("analytics.user_id", user_id)
+            span.set_attribute("analytics.flag_name", flag_name)
+            span.set_attribute("analytics.result", result)
+
+            event_id = str(uuid.uuid4())
+            
+            # Sub-span específico para o salvamento no Firestore
+            with tracer.start_as_current_span("db.firestore.set", kind=SpanKind.CLIENT) as db_span:
+                db_span.set_attribute("db.system", "firestore")
+                db_span.set_attribute("db.collection", GCP_FIRESTORE_COLLECTION)
+                db_span.set_attribute("db.document_id", event_id)
+
+                document_ref = firestore_client.collection(GCP_FIRESTORE_COLLECTION).document(event_id)
+                document_ref.set({
+                    "event_id": event_id,
+                    "user_id": user_id,
+                    "flag_name": flag_name,
+                    "result": result,
+                    "timestamp": body.get("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
+                })
+
+            log.info(f"Evento {event_id} (Flag: {flag_name}) salvo no Firestore.")
+            message.ack()
+
+        except json.JSONDecodeError as exc:
+            span.record_exception(exc)
+            span.set_status(Status(StatusCode.ERROR, "JSON Decode Error"))
+            log.error(f"Erro ao decodificar JSON da mensagem ID: {message.message_id}")
+            message.nack()
+        except Exception as e:
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            log.error(f"Erro inesperado ao processar {message.message_id}: {e}")
+            message.nack()
 
 
 def pubsub_worker_loop():
@@ -92,15 +156,16 @@ def pubsub_worker_loop():
 
 app = Flask(__name__)
 
+# Instrumentação automática para rotas do Flask
+FlaskInstrumentor().instrument_app(app)
+
 
 @app.route("/health")
 def health():
-    # Uma verificação de saúde real poderia checar a conexão com o DynamoDB/SQS
     return jsonify({"status": "ok"})
 
 
 # --- Inicialização ---
-
 
 def start_worker():
     """Inicia o worker Pub/Sub em uma thread separada."""
@@ -108,8 +173,6 @@ def start_worker():
     worker_thread.start()
 
 
-# Inicia o worker Pub/Sub em uma thread de background
-# Isso garante que ele inicie tanto com 'flask run' quanto com 'gunicorn'
 start_worker()
 
 if __name__ == "__main__":
