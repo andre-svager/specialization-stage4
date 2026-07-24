@@ -9,7 +9,7 @@ serviceAccount:
 
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/flag-service/flag-service
-  tag: "1e89c329ba382c4111a7f02724f4547e5f78a531"
+  tag: ""
 
 podAnnotations:
   prometheus.io/scrape: "true"
