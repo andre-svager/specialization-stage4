@@ -1,18 +1,15 @@
 # Flag Service - Specific Values
 serviceName: flag-service
-
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/flag-service/flag-service
-
+  tag: c625fc700ecb8866d2e69490c6fe66b4e1b3e09a
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8002"
   prometheus.io/path: "/metrics"
-
 service:
   port: 8002
   targetPort: 8002
-
 ingress:
   hosts:
     - host: flags.example.com
@@ -23,7 +20,6 @@ ingress:
     - secretName: flag-tls
       hosts:
         - flags.example.com
-
 env:
   - name: LOG_LEVEL
     value: "INFO"
@@ -34,8 +30,7 @@ env:
   - name: GCP_PROJECT_ID
     value: "fiap-502903"
   - name: AUTH_SERVICE_URL
-    value: "http://auth-service.default.svc.cluster.local:8001"  
-
+    value: "http://auth-service.default.svc.cluster.local:8001"
 database:
   enabled: true
   secretName: flag-db-credentials
@@ -44,12 +39,10 @@ database:
   port: 5432
   name: flag_db
   user: flag_service
-
 livenessProbe:
   httpGet:
     path: /health
     port: 8002
-
 readinessProbe:
   httpGet:
     path: /health
