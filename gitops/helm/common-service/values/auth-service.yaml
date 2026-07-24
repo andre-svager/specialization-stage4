@@ -1,9 +1,15 @@
 # Auth Service - Specific Values
 serviceName: auth-service
 
+serviceAccount:
+  create: true
+  name: auth-service
+  annotations:
+    iam.gke.io/gcp-service-account: auth-service@fiap-502903.iam.gserviceaccount.com
+
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/auth-service/auth-service
-  tag: "latest"
+  tag: ""
 
 podAnnotations:
   prometheus.io/scrape: "true"
@@ -28,10 +34,13 @@ env:
     value: "staging"
   - name: PORT
     value: "8001"
-  - name: MASTER_KEY
-    value: "admin-secreto-123"
   - name: GCP_PROJECT_ID
-    value: "fiap-502903"  
+    value: "fiap-502903"
+  - name: MASTER_KEY
+    valueFrom:
+      secretKeyRef:
+        name: auth-service-secrets
+        key: MASTER_KEY  
 
 database:
   enabled: true

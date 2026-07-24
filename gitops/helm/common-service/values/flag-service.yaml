@@ -1,9 +1,15 @@
 # Flag Service - Specific Values
 serviceName: flag-service
 
+serviceAccount:
+  create: true
+  name: flag-service
+  annotations:
+    iam.gke.io/gcp-service-account: flag-service@fiap-502903.iam.gserviceaccount.com
+
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/flag-service/flag-service
-  tag: "latest"
+  tag: "1e89c329ba382c4111a7f02724f4547e5f78a531"
 
 podAnnotations:
   prometheus.io/scrape: "true"
@@ -15,6 +21,7 @@ service:
   targetPort: 8002
 
 ingress:
+  enabled: true
   hosts:
     - host: flags.example.com
       paths:

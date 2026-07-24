@@ -9,7 +9,7 @@ serviceAccount:
 
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/analytics-service/analytics-service
-  tag: "latest"
+  tag: "42d452a59522af2676493abfc94e67103664d359"
 
 podAnnotations:
   prometheus.io/scrape: "true"
@@ -17,10 +17,11 @@ podAnnotations:
   prometheus.io/path: "/metrics"
 
 service:
-  port: 8080
+  port: 8005
   targetPort: 8005
 
 ingress:
+  enabled: true
   hosts:
     - host: analytics.example.com
       paths:

@@ -1,9 +1,15 @@
 # Target Service - Specific Values
 serviceName: target-service
 
+serviceAccount:
+  create: true
+  name: target-service
+  annotations:
+    iam.gke.io/gcp-service-account: target-service@fiap-502903.iam.gserviceaccount.com
+
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/target-service/target-service
-  tag: "latest"
+  tag: "1e89c329ba382c4111a7f02724f4547e5f78a531"
 
 podAnnotations:
   prometheus.io/scrape: "true"
@@ -15,6 +21,7 @@ service:
   targetPort: 8003
 
 ingress:
+  enabled: true
   hosts:
     - host: targets.example.com
       paths:
