@@ -1,0 +1,23 @@
+apiVersion: v2
+name: monitoring-stack
+description: Complete monitoring stack with Prometheus, Loki, Grafana, OpenTelemetry Collector, and Datadog
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+dependencies:
+  - name: kube-prometheus-stack
+    version: 45.28.0
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: prometheus.enabled
+  - name: loki-stack
+    version: 2.9.1
+    repository: https://grafana.github.io/helm-charts
+    condition: loki.enabled
+  - name: opentelemetry-collector
+    version: 0.88.0
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    condition: otel-collector.enabled
+  - name: datadog
+    version: 3.5.0
+    repository: https://helm.datadoghq.com
+    condition: datadog.enabled
