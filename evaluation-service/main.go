@@ -11,7 +11,10 @@ import (
 	"github.com/joho/godotenv"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc" // <-- Added
 	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"      // <-- Added for sdktrace
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0" // <-- Added for semconv
 )
 
 // Contexto global para o Redis
