@@ -54,7 +54,7 @@ spec:
           value: {{ .value | quote }}
           {{- else if .valueFrom }}
           valueFrom:
-            {{- toYaml .valueFrom | nindent 4 }}
+            {{- toYaml .valueFrom | nindent 12 }}
           {{- end }}
         {{- end }}
         {{- if .Values.database.enabled }}
