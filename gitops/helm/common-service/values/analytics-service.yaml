@@ -7,8 +7,7 @@ serviceAccount:
     iam.gke.io/gcp-service-account: analytics-service@fiap-502903.iam.gserviceaccount.com
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/analytics-service/analytics-service
-  tag: ""
-
+  tag: "52f389acb9eae07796871dbc2f12594c80ea6d44"
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8005"

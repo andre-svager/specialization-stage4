@@ -1,25 +1,20 @@
 # Evaluation Service - Specific Values
 serviceName: evaluation-service
-
 serviceAccount:
   create: true
   name: evaluation-service
   annotations:
     iam.gke.io/gcp-service-account: evaluation-service@fiap-502903.iam.gserviceaccount.com
-
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service
-  tag: ""
-
+  tag: "52f389acb9eae07796871dbc2f12594c80ea6d44"
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8080"
   prometheus.io/path: "/metrics"
-
 service:
   port: 8004
   targetPort: 8004
-
 ingress:
   enabled: true
   hosts:
@@ -31,7 +26,6 @@ ingress:
     - secretName: evaluation-tls
       hosts:
         - evaluation.example.com
-
 env:
   - name: LOG_LEVEL
     value: "INFO"
@@ -44,7 +38,7 @@ env:
   - name: QUEUE_PROVIDER
     value: "pubsub"
   - name: PUBSUB_TOPIC
-    value: "toggle-master-analytics-events"  
+    value: "toggle-master-analytics-events"
   - name: REDIS_URL
     value: "redis://redis.default.svc.cluster.local:6379"
   - name: FLAG_SERVICE_URL
@@ -55,13 +49,11 @@ env:
     valueFrom:
       secretKeyRef:
         name: evaluation-service-api-key
-        key: SERVICE_API_KEY  
-
+        key: SERVICE_API_KEY
 livenessProbe:
   httpGet:
     path: /health
     port: 8004
-
 readinessProbe:
   httpGet:
     path: /health
