@@ -26,13 +26,39 @@ spec:
           enabled: true
           isDefault: false
           
-          # FIX: Pin to Loki 2.9.3 to prevent Loki 3.0 schema crash!
+          # CRITICAL: This is what actually fixes the crash loop
           image:
             tag: 2.9.3
             
           persistence:
             enabled: false
-          storageClassName: ""
+          
+          # Your custom config injected here:
+          config:
+            auth_enabled: false
+            server:
+              http_listen_port: 3100
+            common:
+              path_prefix: /data/loki
+              storage:
+                filesystem:
+                  chunks_directory: /data/loki/chunks
+                  rules_directory: /data/loki/rules
+              replication_factor: 1
+              ring:
+                kvstore:
+                  store: inmemory
+            schema_config:
+              configs:
+                - from: 2020-10-24
+                  store: boltdb-shipper
+                  object_store: filesystem
+                  schema: v11
+                  index:
+                    prefix: index_
+                    period: 24h
+            ruler:
+              alertmanager_url: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
         
         promtail:
           enabled: true
