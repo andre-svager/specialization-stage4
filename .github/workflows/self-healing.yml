@@ -1,0 +1,91 @@
+name: Self-Healing Automation
+
+on:
+  repository_dispatch:
+    types: [alert-triggered]
+  workflow_dispatch:
+
+jobs:
+  self-heal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl for GKE
+        run: |
+          echo "${{ secrets.GKE_SA_KEY }}" | base64 -d > gke-key.json
+          gcloud auth activate-service-account --key-file=gke-key.json
+          gcloud container clusters get-credentials togglemaster-gke --zone us-central1-a --project fiap-502903
+          rm gke-key.json
+
+      - name: Parse alert payload
+        id: parse-alert
+        run: |
+          SERVICE_NAME="${{ github.event.client_payload.service }}"
+          ALERT_NAME="${{ github.event.client_payload.alert }}"
+          SEVERITY="${{ github.event.client_payload.severity }}"
+          
+          echo "service_name=${SERVICE_NAME}" >> $GITHUB_OUTPUT
+          echo "alert_name=${ALERT_NAME}" >> $GITHUB_OUTPUT
+          echo "severity=${SEVERITY}" >> $GITHUB_OUTPUT
+          
+          echo "Service: ${SERVICE_NAME}"
+          echo "Alert: ${ALERT_NAME}"
+          echo "Severity: ${SEVERITY}"
+
+      - name: Execute self-healing action
+        run: |
+          SERVICE="${{ steps.parse-alert.outputs.service_name }}"
+          ALERT="${{ steps.parse-alert.outputs.alert_name }}"
+          SEVERITY="${{ steps.parse-alert.outputs.severity }}"
+          
+          echo "Executing self-healing for service: ${SERVICE}"
+          echo "Alert: ${ALERT}"
+          echo "Severity: ${SEVERITY}"
+          
+          # Self-healing logic based on alert type
+          case "${ALERT}" in
+            "HighErrorRateAuth"|"HighErrorRateAnyService")
+              echo "High error rate detected - restarting deployment"
+              kubectl rollout restart deployment/${SERVICE} -n default
+              kubectl rollout status deployment/${SERVICE} -n default --timeout=120s
+              ;;
+            "HighLatency")
+              echo "High latency detected - restarting deployment"
+              kubectl rollout restart deployment/${SERVICE} -n default
+              kubectl rollout status deployment/${SERVICE} -n default --timeout=120s
+              ;;
+            "ServiceDown")
+              echo "Service down - restarting deployment"
+              kubectl rollout restart deployment/${SERVICE} -n default
+              kubectl rollout status deployment/${SERVICE} -n default --timeout=120s
+              ;;
+            "PodRestarting")
+              echo "Pod restarting frequently - checking pod status"
+              kubectl get pods -n default -l app=${SERVICE}
+              kubectl describe pod -n default -l app=${SERVICE} --tail=50
+              ;;
+            *)
+              echo "Unknown alert type - no automatic action taken"
+              exit 1
+              ;;
+          esac
+          
+          echo "Self-healing action completed successfully"
+
+      - name: Log self-healing action
+        run: |
+          SERVICE="${{ steps.parse-alert.outputs.service_name }}"
+          ALERT="${{ steps.parse-alert.outputs.alert_name }}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          echo "Self-healing executed at ${TIMESTAMP}"
+          echo "Service: ${SERVICE}"
+          echo "Alert: ${ALERT}"
+          echo "Action: Deployment restart"
