@@ -76,11 +76,13 @@ spec:
                   url: http://prometheus-operated.monitoring.svc.cluster.local:9090
                   access: proxy
                   editable: true
+                  isDefault: false
                 - name: Loki
                   type: loki
                   url: http://loki-stack.monitoring.svc.cluster.local:3100
                   access: proxy
                   editable: true
+                  isDefault: false
 
         alertmanager:
           enabled: true
