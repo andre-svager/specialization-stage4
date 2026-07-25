@@ -7,7 +7,7 @@ serviceAccount:
     iam.gke.io/gcp-service-account: auth-service@fiap-502903.iam.gserviceaccount.com
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/auth-service/auth-service
-  tag: "70f11f8b12b7d1cafc8aad073465e97236dc4b74"
+  tag: "35847ead39f1488fc48e7725b4721808270f6a1f"
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8001"
