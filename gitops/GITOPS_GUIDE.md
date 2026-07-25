@@ -518,6 +518,14 @@ kubectl get secret evaluation-service-api-key -n default -o jsonpath='{.data.SER
 
 
 
+IMPORTANT
+
+  kubectl get pods -A | grep -E 'grafana|loki'
+  
+  Verify namespace when not found POD
+
+  CHECK POD LOGS
+  kubectl logs -n monitoring kube-prometheus-stack-grafana-5cc674d9cd-d9lpg -c grafana --tail=30
 
 
 ____________________________________________
