@@ -28,8 +28,8 @@ func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 // validateKeyHandler verifica se uma chave de API (enviada via Header) é válida
 func (a *App) validateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	// Extrai a chave do header "Authorization: Bearer <key>"
-	//authHeader := r.Header.Get("Authorization")
-	keyString := strings.TrimPrefix("auth_header", "Bearer ")
+	authHeader := r.Header.Get("Authorization")
+	keyString := strings.TrimPrefix(authHeader, "Bearer ")
 
 	if keyString == "" {
 		http.Error(w, "Authorization header não encontrado", http.StatusUnauthorized)
