@@ -50,7 +50,12 @@ spec:
         env:
         {{- range .Values.env }}
         - name: {{ .name }}
+          {{- if .value }}
           value: {{ .value | quote }}
+          {{- else if .valueFrom }}
+          valueFrom:
+            {{- toYaml .valueFrom | nindent 4 }}
+          {{- end }}
         {{- end }}
         {{- if .Values.database.enabled }}
         {{- if .Values.database.secretName }}
