@@ -467,14 +467,51 @@ argocd app sync monitoring-stack
 
 kubectl describe pod -n default -l app.kubernetes.io/name=flag-service | grep -i image
 kubectl logs -n default -l app.kubernetes.io/name=analytics-service --tail=20
-kubectl exec -it deploy/postgres -n db-infra -- psql -U postgres -d flag_db -c "DELETE FROM flags WHERE name = 'enable-new-dashboard';"
-
 kubectl delete pod debug -n default --force --grace-period=0 2>/dev/
 
+kubectl delete pod debug -n default --force --grace-period=0 2>/dev/null
+kubectl exec -it deploy/postgres -n db-infra -- psql -U postgres -d flag_db -c "DELETE FROM flags WHERE name = 'enable-new-dashboard';"
+kubectl exec -it deploy/postgres -n db-infra -- psql -U postgres -d target_db -c "DELETE FROM targeting_rules WHERE flag_name = 'enable-new-dashboard';"
+kubectl run debug --image=curlimages/curl -n default --restart=Never --rm -i -- sh -s < integration-test.sh
 
+´´´
+
+GET POD LOG
+kubectl logs -n default -l app.kubernetes.io/name=evaluation-service --tail=15
 
 TROUBLESHOOTING
 kubectl get pods -n default -l app.kubernetes.io/name=evaluation-service
 kubectl describe pod -n default -l app.kubernetes.io/name=evaluation-service | grep -i image
 
 kubectl get pod -n default -l app.kubernetes.io/name=evaluation-service -o jsonpath='{.spec.containers[0].env}' | tr ',' '\n' | grep -i otel
+
+
+GET POD AGE
+  kubectl get pods -n default -l app.kubernetes.io/name=evaluation-service
+ESPERA  
+  kubectl get pods -n default -l app.kubernetes.io/name=evaluation-service -w
+
+FORCE RESTART
+  kubectl delete pod -n default -l app.kubernetes.io/name=evaluation-service  
+
+
+UPDATE API KEY
+In case of error
+  kubectl delete application secrets -n argocd
+  kubectl apply -f gitops/apps/secrets-app.yaml
+
+kubectl get applications -n argocd
+kubectl get application secrets -n argocd
+kubectl describe application secrets -n argocd
+
+kubectl get secrets -n default
+kubectl get secrets -n db-infra
+
+kubectl get secret evaluation-service-api-key -n default -o jsonpath='{.data.SERVICE_API_KEY}' | base64 -d
+
+TEST IT
+
+kubectl patch secret evaluation-service-api-key -n default \
+  -p '{"stringData":{"SERVICE_API_KEY":"deliberately-wrong-value"}}'
+sleep 5
+kubectl get secret evaluation-service-api-key -n default -o jsonpath='{.data.SERVICE_API_KEY}' | base64 -d
