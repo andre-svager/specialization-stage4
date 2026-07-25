@@ -2,7 +2,7 @@
 serviceName: flag-service
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/flag-service/flag-service
-  tag: "52f389acb9eae07796871dbc2f12594c80ea6d44"
+  tag: ""
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8002"
