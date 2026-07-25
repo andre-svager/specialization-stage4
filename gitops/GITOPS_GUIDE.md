@@ -477,7 +477,9 @@ kubectl run debug --image=curlimages/curl -n default --restart=Never --rm -i -- 
 ´´´
 
 GET POD LOG
-kubectl logs -n default -l app.kubernetes.io/name=evaluation-service --tail=15
+  kubectl logs -n default -l app.kubernetes.io/name=evaluation-service --tail=15
+  kubectl logs -n monitoring kube-prometheus-stack-grafana-5cc674d9cd-d9lpg -c grafana --tail=30
+
 
 TROUBLESHOOTING
 kubectl get pods -n default -l app.kubernetes.io/name=evaluation-service
@@ -486,9 +488,7 @@ kubectl describe pod -n default -l app.kubernetes.io/name=evaluation-service | g
 kubectl get pod -n default -l app.kubernetes.io/name=evaluation-service -o jsonpath='{.spec.containers[0].env}' | tr ',' '\n' | grep -i otel
 
 
-GET POD AGE
-  kubectl get pods -n default -l app.kubernetes.io/name=evaluation-service
-ESPERA  
+GET POD AGE -w to w TO WAIT
   kubectl get pods -n default -l app.kubernetes.io/name=evaluation-service -w
 
 FORCE RESTART
@@ -516,24 +516,11 @@ kubectl patch secret evaluation-service-api-key -n default \
 sleep 5
 kubectl get secret evaluation-service-api-key -n default -o jsonpath='{.data.SERVICE_API_KEY}' | base64 -d
 
-
-
-IMPORTANT
-
+ALL PODS
   kubectl get pods -A | grep -E 'grafana|loki'
   
-  Verify namespace when not found POD
-
-  CHECK POD LOGS
-  kubectl logs -n monitoring kube-prometheus-stack-grafana-5cc674d9cd-d9lpg -c grafana --tail=30
-
-
-____________________________________________
-
-
-MONITORING
-
-
+GET CONFIG MAP VALUES
+  kubectl get cm,secret -n monitoring -l grafana_datasource=1
 
 
 kubectl logs -n monitoring -l app.kubernetes.io/name=grafana --previous
@@ -545,7 +532,14 @@ otel-collector-app.yaml  # Deploys OpenTelemetry Collector
     └── custom-alerts.yaml       # PrometheusRules
 
 
+kubectl get application kube-prometheus-stack -n argocd -o yaml | grep -A5 "sync\|health"
+argocd app sync kube-prometheus-stack   # or push + let auto-sync pick it up
 
+FNDLOCAL FLIES
+
+grep -rln "loki-stack" gitops/apps/
+grep -rln "loki-stack" gitops/
+find . -iname "*loki*"
 
 
 Looking at your screenshots and uploaded files, it is clear why things might feel a bit tangled right now. You are currently caught halfway between two different Kubernetes deployment patterns: the Umbrella Chart pattern (indicated by Chart.yaml inside subfolders) and the ArgoCD App of Apps pattern (indicated by the -app.yaml files).
