@@ -1,0 +1,159 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: "45.28.0"
+    helm:
+      values: |
+        prometheus:
+          enabled: true
+          prometheusSpec:
+            retention: 1d
+            retentionSize: ""
+            storageSpec:
+              emptyDir:
+                medium: Memory
+            enableRemoteWriteReceiver: true
+            serviceMonitorSelectorNilUsesHelmValues: false
+            serviceMonitorNamespaceSelector:
+              any: true
+            podMonitorSelectorNilUsesHelmValues: false
+            podMonitorNamespaceSelector:
+              any: true
+            additionalScrapeConfigs:
+              - job_name: 'kubernetes-pods-annotated'
+                kubernetes_sd_configs:
+                  - role: pod
+                relabel_configs:
+                  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                    action: keep
+                    regex: true
+                  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                    action: replace
+                    target_label: __metrics_path__
+                    regex: (.+)
+                  - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                    action: replace
+                    regex: ([^:]+)(?::\d+)?;(\d+)
+                    replacement: $1:$2
+                    target_label: __address__
+            resources:
+              requests:
+                cpu: 200m
+                memory: 512Mi
+              limits:
+                cpu: 500m
+                memory: 1Gi
+
+        grafana:
+          enabled: true
+          defaultDashboardsEnabled: true
+          adminPassword: admin
+          persistence:
+            enabled: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          service:
+            type: ClusterIP
+            port: 3000
+          grafana.ini:
+            server:
+              root_url: http://localhost:3000
+          datasources:
+            datasources.yaml:
+              apiVersion: 1
+              datasources:
+                - name: Prometheus
+                  type: prometheus
+                  url: http://prometheus-operated.monitoring.svc.cluster.local:9090
+                  access: proxy
+                  isDefault: true
+                  editable: true
+                - name: Loki
+                  type: loki
+                  url: http://loki.monitoring.svc.cluster.local:3100
+                  access: proxy
+                  editable: true
+
+        alertmanager:
+          enabled: true
+          alertmanagerSpec:
+            retention: 24h
+            storage:
+              emptyDir:
+                medium: Memory
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
+
+        kube-state-metrics:
+          enabled: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+        prometheus-node-exporter:
+          enabled: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+        defaultRules:
+          create: true
+          rules:
+            alertmanager: true
+            etcd: false
+            configReloaders: true
+            general: true
+            k8s: true
+            kubeApiserver: true
+            kubeApiserverAvailability: true
+            kubeApiserverBurnrate: true
+            kubeApiserverHistogram: true
+            kubeApiserverSlos: true
+            kubeControllerManager: false
+            kubelet: true
+            kubeProxy: true
+            kubeScheduler: false
+            kubeStateMetrics: true
+            network: true
+            node: true
+            nodeRecorder: true
+            prometheus: true
+            prometheusOperator: true
+            time: true
+            windows: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
