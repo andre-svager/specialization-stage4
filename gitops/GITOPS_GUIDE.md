@@ -462,3 +462,19 @@ kubectl apply -f gitops/apps/monitoring-app.yaml
 # Or sync via ArgoCD CLI/UI
 argocd app create monitoring-stack --file gitops/apps/monitoring-app.yaml
 argocd app sync monitoring-stack
+
+
+
+kubectl describe pod -n default -l app.kubernetes.io/name=flag-service | grep -i image
+kubectl logs -n default -l app.kubernetes.io/name=analytics-service --tail=20
+kubectl exec -it deploy/postgres -n db-infra -- psql -U postgres -d flag_db -c "DELETE FROM flags WHERE name = 'enable-new-dashboard';"
+
+kubectl delete pod debug -n default --force --grace-period=0 2>/dev/
+
+
+
+TROUBLESHOOTING
+kubectl get pods -n default -l app.kubernetes.io/name=evaluation-service
+kubectl describe pod -n default -l app.kubernetes.io/name=evaluation-service | grep -i image
+
+kubectl get pod -n default -l app.kubernetes.io/name=evaluation-service -o jsonpath='{.spec.containers[0].env}' | tr ',' '\n' | grep -i otel
