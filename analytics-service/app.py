@@ -10,7 +10,7 @@ from google.cloud import firestore
 from google.cloud import pubsub_v1
 
 # --- OpenTelemetry Imports ---
-from opentelemetry import trace, metrics, propagation
+from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
