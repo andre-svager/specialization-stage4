@@ -4,7 +4,7 @@ metadata:
   name: loki-stack
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1" # Starts after Prometheus/Grafana
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: default
   destination:
@@ -19,20 +19,23 @@ spec:
   source:
     repoURL: https://grafana.github.io/helm-charts
     chart: loki-stack
-    targetRevision: "2.10.2" # Standard stable version for the stack
+    targetRevision: "2.10.2" 
     helm:
       values: |
         loki:
           enabled: true
           isDefault: false
+          
+          # FIX: Pin to Loki 2.9.3 to prevent Loki 3.0 schema crash!
+          image:
+            tag: 2.9.3
+            
           persistence:
-            enabled: false # This stops the CrashLoopBackOff!
-          # Configure Loki to use ephemeral emptyDir storage for testing
+            enabled: false
           storageClassName: ""
         
         promtail:
           enabled: true
-          # Promtail runs on every node to scrape logs and send them to Loki
           config:
             clients:
               - url: http://loki-stack:3100/loki/api/v1/push
