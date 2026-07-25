@@ -42,11 +42,15 @@ def require_auth(f):
 
     @wraps(f)
     def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return jsonify({"error": "Authorization header obrigatório"}), 401
+
         try:
             validate_url = f"{AUTH_SERVICE_URL}/validate"
             response = requests.get(
                 validate_url,
-                headers={"Authorization": "Bearer auth_header"},
+                headers={"Authorization": auth_header},
                 timeout=3,
             )
 
