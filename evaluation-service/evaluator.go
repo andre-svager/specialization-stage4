@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 )
@@ -107,9 +106,9 @@ func (a *App) fetchFromServices(flagName string) (*CombinedFlagInfo, error) {
 func (a *App) fetchFlag(flagName string) (*Flag, error) {
 	url := fmt.Sprintf("%s/flags/%s", a.FlagServiceURL, flagName)
 
-	apiKey := os.Getenv("SERVICE_API_KEY")
+	//apiKey := os.Getenv("SERVICE_API_KEY")
 	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+	//req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	resp, err := a.HttpClient.Do(req)
 	if err != nil {
@@ -134,9 +133,9 @@ func (a *App) fetchFlag(flagName string) (*Flag, error) {
 
 func (a *App) fetchRule(flagName string) (*TargetingRule, error) {
 	url := fmt.Sprintf("%s/rules/%s", a.TargetingServiceURL, flagName)
-	apiKey := os.Getenv("SERVICE_API_KEY") // Usa a mesma chave
+	//apiKey := os.Getenv("SERVICE_API_KEY") // Usa a mesma chave
 	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+	//req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	resp, err := a.HttpClient.Do(req)
 	if err != nil {
