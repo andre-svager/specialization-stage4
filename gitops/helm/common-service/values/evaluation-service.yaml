@@ -8,6 +8,7 @@ serviceAccount:
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service
   tag: ""
+  
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8080"
