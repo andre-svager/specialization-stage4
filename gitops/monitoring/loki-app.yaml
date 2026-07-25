@@ -4,9 +4,18 @@ metadata:
   name: otel-collector
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "1" # Starts after core storage/monitoring services
 spec:
   project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
   source:
     repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
     chart: opentelemetry-collector
@@ -14,10 +23,13 @@ spec:
     helm:
       values: |
         mode: deployment
+
         image:
           repository: otel/opentelemetry-collector-contrib
-          tag: "0.88.0"
+          tag: 0.88.0
+
         replicaCount: 2
+
         resources:
           requests:
             cpu: 100m
@@ -25,6 +37,7 @@ spec:
           limits:
             cpu: 200m
             memory: 256Mi
+
         config:
           receivers:
             otlp:
@@ -51,6 +64,7 @@ spec:
                     layout_type: strptime
                     parse_from: attributes.time
                     location: UTC
+
           processors:
             batch:
               timeout: 5s
@@ -65,13 +79,14 @@ spec:
                   value: togglemaster-gke
                 - key: environment
                   value: staging
+
           exporters:
             prometheusremotewrite:
-              endpoint: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+              endpoint: http://prometheus-operated.monitoring.svc.cluster.local:9090/api/v1/write
               tls:
                 insecure: true
             loki:
-              endpoint: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+              endpoint: http://loki-stack.monitoring.svc.cluster.local:3100/loki/api/v1/push
               tls:
                 insecure: true
               labels:
@@ -79,6 +94,7 @@ spec:
                 cluster: togglemaster-gke
             logging:
               loglevel: debug
+
           service:
             pipelines:
               metrics:
@@ -93,6 +109,7 @@ spec:
                 receivers: [otlp]
                 processors: [batch, memory_limiter, resource]
                 exporters: [logging]
+
         ports:
           otlp:
             containerPort: 4317
@@ -106,14 +123,6 @@ spec:
             containerPort: 8888
             servicePort: 8888
             protocol: TCP
+
         service:
           type: ClusterIP
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: monitoring
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true

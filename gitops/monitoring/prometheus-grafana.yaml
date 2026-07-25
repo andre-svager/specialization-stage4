@@ -7,6 +7,15 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
   source:
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
@@ -21,30 +30,12 @@ spec:
             storageSpec:
               emptyDir:
                 medium: Memory
-            enableRemoteWriteReceiver: true
             serviceMonitorSelectorNilUsesHelmValues: false
             serviceMonitorNamespaceSelector:
               any: true
             podMonitorSelectorNilUsesHelmValues: false
             podMonitorNamespaceSelector:
               any: true
-            additionalScrapeConfigs:
-              - job_name: 'kubernetes-pods-annotated'
-                kubernetes_sd_configs:
-                  - role: pod
-                relabel_configs:
-                  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-                    action: keep
-                    regex: true
-                  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-                    action: replace
-                    target_label: __metrics_path__
-                    regex: (.+)
-                  - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
-                    action: replace
-                    regex: ([^:]+)(?::\d+)?;(\d+)
-                    replacement: $1:$2
-                    target_label: __address__
             resources:
               requests:
                 cpu: 200m
@@ -80,11 +71,10 @@ spec:
                   type: prometheus
                   url: http://prometheus-operated.monitoring.svc.cluster.local:9090
                   access: proxy
-                  isDefault: true
                   editable: true
                 - name: Loki
                   type: loki
-                  url: http://loki.monitoring.svc.cluster.local:3100
+                  url: http://loki-stack.monitoring.svc.cluster.local:3100
                   access: proxy
                   editable: true
 
@@ -113,7 +103,7 @@ spec:
               cpu: 100m
               memory: 128Mi
 
-        prometheus-node-exporter:
+        node-exporter:
           enabled: true
           resources:
             requests:
@@ -123,11 +113,14 @@ spec:
               cpu: 100m
               memory: 128Mi
 
+        prometheus-node-exporter:
+          enabled: true
+
         defaultRules:
           create: true
           rules:
             alertmanager: true
-            etcd: false
+            etcd: true
             configReloaders: true
             general: true
             k8s: true
@@ -136,10 +129,10 @@ spec:
             kubeApiserverBurnrate: true
             kubeApiserverHistogram: true
             kubeApiserverSlos: true
-            kubeControllerManager: false
+            kubeControllerManager: true
             kubelet: true
             kubeProxy: true
-            kubeScheduler: false
+            kubeScheduler: true
             kubeStateMetrics: true
             network: true
             node: true
@@ -148,12 +141,3 @@ spec:
             prometheusOperator: true
             time: true
             windows: false
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: monitoring
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true

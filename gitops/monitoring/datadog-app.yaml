@@ -1,0 +1,60 @@
+# Datadog Agent values for APM integration
+# This deploys Datadog Agent with APM and log collection enabled
+
+datadog:
+  apiKey: <DATADOG_API_KEY>  # Replace with actual API key from Datadog education tier
+  site: datadoghq.com
+  logs:
+    enabled: true
+    containerCollectAll: true
+  apm:
+    enabled: true
+  processAgent:
+    enabled: true
+  kubelet:
+    enabled: true
+  systemProbe:
+    enabled: true
+  collectEvents: true
+  leaderElection: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+agents:
+  useHostNetwork: true
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists
+  nodeSelector:
+    kubernetes.io/os: linux
+
+# APM configuration for distributed tracing
+apm:
+  config:
+    enabled: true
+    env: staging
+    service:
+      - name: auth-service
+        env: staging
+      - name: analytics-service
+        env: staging
+      - name: evaluation-service
+        env: staging
+      - name: flag-service
+        env: staging
+      - name: target-service
+        env: staging
+
+# Log collection configuration
+logs:
+  enabled: true
+  containerCollectAll: true
+  containerCollectFiles:
+    /var/log/containers/*.log:
+      source: container
+      service: togglemaster
