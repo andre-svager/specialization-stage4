@@ -515,3 +515,94 @@ kubectl patch secret evaluation-service-api-key -n default \
   -p '{"stringData":{"SERVICE_API_KEY":"deliberately-wrong-value"}}'
 sleep 5
 kubectl get secret evaluation-service-api-key -n default -o jsonpath='{.data.SERVICE_API_KEY}' | base64 -d
+
+
+
+
+
+____________________________________________
+
+
+MONITORING
+
+
+
+
+kubectl logs -n monitoring -l app.kubernetes.io/name=grafana --previous
+kubectl logs -n monitoring loki-stack-0 --previous
+kubectl describe pod -n monitoring -l app.kubernetes.io/name=grafana
+
+otel-collector-app.yaml  # Deploys OpenTelemetry Collector
+    ├── custom-dashboards.yaml   # ConfigMap with your JSON dashboards
+    └── custom-alerts.yaml       # PrometheusRules
+
+
+
+
+
+Looking at your screenshots and uploaded files, it is clear why things might feel a bit tangled right now. You are currently caught halfway between two different Kubernetes deployment patterns: the Umbrella Chart pattern (indicated by Chart.yaml inside subfolders) and the ArgoCD App of Apps pattern (indicated by the -app.yaml files).
+
+To answer your first question: You do not need to throw the whole project away. The actual configuration inside your files (like your OTel pipeline and Grafana dashboard) is highly valuable. However, we do need to do a "structural fresh start" to simplify the directory and enforce DRY (Don't Repeat Yourself) principles.
+
+Here is the evaluation of the pattern and a proposed step-by-step plan for execution.
+Pattern Decision: "App of Apps" vs. Umbrella Chart
+
+Recommendation: Use the ArgoCD "App of Apps" Pattern with Flat Manifests.
+
+Do not use an Umbrella Helm Chart for your observability stack. Wrapping massive third-party charts (like kube-prometheus-stack) inside your own custom Helm chart makes version upgrades painful and debugging very difficult.
+
+Instead, the simplest and most DRY approach is to keep a flat directory of ArgoCD Application YAMLs. Each YAML tells ArgoCD to pull a standard chart from the official public repository and inject your specific custom values.
+The Precedence (Order of Implementation)
+
+When building an observability stack, data needs a place to be stored before the collectors can send it. Therefore, the implementation order must be:
+
+    Prometheus & Grafana: The foundational storage for metrics and the UI to view everything.
+
+    Loki: The foundational storage for logs.
+
+    OpenTelemetry (OTel): The central router/collector that receives data from your microservices and pushes it to Prometheus and Loki.
+
+    Datadog: The external SaaS integration (usually configured simply as an extra exporter inside your existing OTel collector).
+
+Step-by-Step Implementation Plan
+Phase 1: The Cleanup
+
+    Delete the nested folders (datadog/, grafana/, prometheus/, otel-collector/, loki/) that contain redundant values.yaml and Chart.yaml files.
+
+    Establish a clean, flat directory under gitops/monitoring/ containing only ArgoCD Application manifests and Kubernetes ConfigMaps.
+
+Phase 2: Kube-Prometheus-Stack (Metrics & Dashboards)
+
+    Create a single prometheus-grafana-app.yaml.
+
+    This file will use the official kube-prometheus-stack Helm chart.
+
+    We will migrate your toggle-master-dashboard.json into a standard Kubernetes ConfigMap so Grafana can automatically discover it via its sidecar (completely avoiding local file path issues).
+
+Phase 3: Loki (Logging)
+
+    Create loki-app.yaml.
+
+    Point it to the official Grafana Loki Helm chart.
+
+    Configure it for lightweight, ephemeral storage (since this is likely a test/staging environment) to avoid Persistent Volume crash loops.
+
+Phase 4: OpenTelemetry (The Router)
+
+    Create otel-collector-app.yaml.
+
+    Embed your provided OTel values.yaml into this ArgoCD manifest.
+
+    Ensure the OTel exporters correctly point to the internal cluster URLs of your new Prometheus and Loki instances.
+
+Phase 5: Datadog Integration
+
+    Instead of running a heavy standalone Datadog Agent, we will simply update the OpenTelemetry Collector to add Datadog as an exporter.
+
+    This keeps the architecture incredibly simple: Microservices send data only to OTel, and OTel splits the traffic—sending one copy to your local Grafana stack and one copy to Datadog.
+
+Next Step
+
+This plan will drastically reduce your file count, remove duplicated values, and make the stack much easier to debug.
+
+Before we execute Phase 1 and start generating the cleaned-up files, are you comfortable deleting the nested folders, or do you have any custom configurations hidden in them (besides the dashboard and OTel values you already shared) that we need to save first?    

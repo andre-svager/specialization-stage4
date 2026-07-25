@@ -4,7 +4,7 @@ metadata:
   name: kube-prometheus-stack
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "0" # Starts first
 spec:
   project: default
   destination:
@@ -26,16 +26,9 @@ spec:
           enabled: true
           prometheusSpec:
             retention: 1d
-            retentionSize: ""
             storageSpec:
               emptyDir:
                 medium: Memory
-            serviceMonitorSelectorNilUsesHelmValues: false
-            serviceMonitorNamespaceSelector:
-              any: true
-            podMonitorSelectorNilUsesHelmValues: false
-            podMonitorNamespaceSelector:
-              any: true
             resources:
               requests:
                 cpu: 200m
@@ -65,7 +58,7 @@ spec:
             server:
               root_url: http://localhost:3000
           
-          # Sidecar watcher to dynamically ingest ConfigMaps with dashboards & datasources
+          # Enables the sidecar to automatically discover ConfigMap dashboards
           sidecar:
             dashboards:
               enabled: true
@@ -96,59 +89,3 @@ spec:
             storage:
               emptyDir:
                 medium: Memory
-            resources:
-              requests:
-                cpu: 50m
-                memory: 64Mi
-              limits:
-                cpu: 100m
-                memory: 128Mi
-
-        kube-state-metrics:
-          enabled: true
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 100m
-              memory: 128Mi
-
-        node-exporter:
-          enabled: true
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 100m
-              memory: 128Mi
-
-        prometheus-node-exporter:
-          enabled: true
-
-        defaultRules:
-          create: true
-          rules:
-            alertmanager: true
-            etcd: true
-            configReloaders: true
-            general: true
-            k8s: true
-            kubeApiserver: true
-            kubeApiserverAvailability: true
-            kubeApiserverBurnrate: true
-            kubeApiserverHistogram: true
-            kubeApiserverSlos: true
-            kubeControllerManager: true
-            kubelet: true
-            kubeProxy: true
-            kubeScheduler: true
-            kubeStateMetrics: true
-            network: true
-            node: true
-            nodeRecorder: true
-            prometheus: true
-            prometheusOperator: true
-            time: true
-            windows: false
