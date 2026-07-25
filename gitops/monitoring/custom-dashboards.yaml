@@ -4,7 +4,7 @@ metadata:
   name: toggle-master-dashboard
   namespace: monitoring
   labels:
-    # This label triggers the Grafana sidecar to load this ConfigMap as a dashboard
+    # This label tells Grafana to grab this dashboard
     grafana_dashboard: "1"
 spec:
   data:
@@ -24,389 +24,54 @@ spec:
           ]
         },
         "editable": true,
-        "gnetId": null,
-        "graphTooltip": 0,
-        "id": null,
-        "links": [],
         "panels": [
           {
             "datasource": "Prometheus",
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "thresholds"
-                },
-                "mappings": [],
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 80
-                    }
-                  ]
-                },
-                "unit": "percent"
-              },
-              "overrides": []
-            },
-            "gridPos": {
-              "h": 8,
-              "w": 12,
-              "x": 0,
-              "y": 0
-            },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
             "id": 1,
-            "options": {
-              "orientation": "auto",
-              "reduceOptions": {
-                "calcs": ["lastNotNull"],
-                "fields": "",
-                "values": false
-              },
-              "showThresholdLabels": false,
-              "showThresholdMarkers": true
-            },
-            "pluginVersion": "8.0.0",
+            "title": "Cluster CPU Usage",
+            "type": "gauge",
             "targets": [
               {
                 "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
                 "legendFormat": "CPU Usage - {{instance}}",
                 "refId": "A"
               }
-            ],
-            "title": "Cluster CPU Usage",
-            "type": "gauge"
+            ]
           },
           {
             "datasource": "Prometheus",
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "thresholds"
-                },
-                "mappings": [],
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 80
-                    }
-                  ]
-                },
-                "unit": "percent"
-              },
-              "overrides": []
-            },
-            "gridPos": {
-              "h": 8,
-              "w": 12,
-              "x": 12,
-              "y": 0
-            },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
             "id": 2,
-            "options": {
-              "orientation": "auto",
-              "reduceOptions": {
-                "calcs": ["lastNotNull"],
-                "fields": "",
-                "values": false
-              },
-              "showThresholdLabels": false,
-              "showThresholdMarkers": true
-            },
-            "pluginVersion": "8.0.0",
+            "title": "Cluster Memory Usage",
+            "type": "gauge",
             "targets": [
               {
                 "expr": "100 * (1 - ((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)))",
                 "legendFormat": "Memory Usage - {{instance}}",
                 "refId": "A"
               }
-            ],
-            "title": "Cluster Memory Usage",
-            "type": "gauge"
-          },
-          {
-            "datasource": "Prometheus",
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "drawStyle": "line",
-                  "fillOpacity": 10,
-                  "gradientMode": "none",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "lineInterpolation": "linear",
-                  "lineWidth": 1,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "never",
-                  "spanNulls": true
-                },
-                "mappings": [],
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    }
-                  ]
-                },
-                "unit": "reqps"
-              },
-              "overrides": []
-            },
-            "gridPos": {
-              "h": 8,
-              "w": 24,
-              "x": 0,
-              "y": 8
-            },
-            "id": 3,
-            "options": {
-              "legend": {
-                "calcs": ["mean", "lastNotNull", "max"],
-                "displayMode": "table",
-                "placement": "bottom"
-              },
-              "tooltip": {
-                "mode": "single"
-              }
-            },
-            "pluginVersion": "8.0.0",
-            "targets": [
-              {
-                "expr": "rate(http_requests_total[5m])",
-                "legendFormat": "{{service}} - {{method}}",
-                "refId": "A"
-              }
-            ],
-            "title": "Microservice Request Rates",
-            "type": "timeseries"
+            ]
           },
           {
             "datasource": "Loki",
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "thresholds"
-                },
-                "custom": {
-                  "align": "auto",
-                  "displayMode": "auto"
-                },
-                "mappings": [],
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    }
-                  ]
-                }
-              },
-              "overrides": []
-            },
-            "gridPos": {
-              "h": 10,
-              "w": 24,
-              "x": 0,
-              "y": 16
-            },
+            "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
             "id": 4,
-            "options": {
-              "showHeader": true
-            },
-            "pluginVersion": "8.0.0",
+            "title": "Real-time Logs",
+            "type": "table",
             "targets": [
               {
                 "expr": "{namespace=\"default\"}",
                 "refId": "A"
               }
-            ],
-            "title": "Real-time Logs",
-            "type": "table"
-          },
-          {
-            "datasource": "Prometheus",
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "drawStyle": "line",
-                  "fillOpacity": 10,
-                  "gradientMode": "none",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "lineInterpolation": "linear",
-                  "lineWidth": 1,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "never",
-                  "spanNulls": true
-                },
-                "mappings": [],
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    }
-                  ]
-                },
-                "unit": "s"
-              },
-              "overrides": []
-            },
-            "gridPos": {
-              "h": 8,
-              "w": 12,
-              "x": 0,
-              "y": 26
-            },
-            "id": 5,
-            "options": {
-              "legend": {
-                "calcs": ["mean", "lastNotNull", "max"],
-                "displayMode": "table",
-                "placement": "bottom"
-              },
-              "tooltip": {
-                "mode": "single"
-              }
-            },
-            "pluginVersion": "8.0.0",
-            "targets": [
-              {
-                "expr": "rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])",
-                "legendFormat": "{{service}} Latency",
-                "refId": "A"
-              }
-            ],
-            "title": "Request Latency",
-            "type": "timeseries"
-          },
-          {
-            "datasource": "Prometheus",
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "drawStyle": "line",
-                  "fillOpacity": 10,
-                  "gradientMode": "none",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "lineInterpolation": "linear",
-                  "lineWidth": 1,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "never",
-                  "spanNulls": true
-                },
-                "mappings": [],
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 5
-                    }
-                  ]
-                },
-                "unit": "percent"
-              },
-              "overrides": []
-            },
-            "gridPos": {
-              "h": 8,
-              "w": 12,
-              "x": 12,
-              "y": 26
-            },
-            "id": 6,
-            "options": {
-              "legend": {
-                "calcs": ["mean", "lastNotNull", "max"],
-                "displayMode": "table",
-                "placement": "bottom"
-              },
-              "tooltip": {
-                "mode": "single"
-              }
-            },
-            "pluginVersion": "8.0.0",
-            "targets": [
-              {
-                "expr": "rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m]) * 100",
-                "legendFormat": "{{service}} Error Rate",
-                "refId": "A"
-              }
-            ],
-            "title": "Error Rate",
-            "type": "timeseries"
+            ]
           }
         ],
         "refresh": "5s",
         "schemaVersion": 27,
         "style": "dark",
         "tags": ["togglemaster", "monitoring"],
-        "templating": {
-          "list": []
-        },
-        "time": {
-          "from": "now-1h",
-          "to": "now"
-        },
-        "timepicker": {},
-        "timezone": "",
+        "time": { "from": "now-1h", "to": "now" },
         "title": "ToggleMaster Monitoring Dashboard",
         "uid": "toggle-master-dashboard",
         "version": 1
