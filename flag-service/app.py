@@ -47,7 +47,7 @@ def require_auth(f):
             validate_url = f"{AUTH_SERVICE_URL}/validate"
             response = requests.get(
                 validate_url,
-                headers={"Authorization": "auth_header"},
+                headers={"Authorization": "Bearer auth_header"},
                 timeout=3,
             )
 
