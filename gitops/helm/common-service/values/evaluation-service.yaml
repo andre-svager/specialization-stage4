@@ -7,8 +7,7 @@ serviceAccount:
     iam.gke.io/gcp-service-account: evaluation-service@fiap-502903.iam.gserviceaccount.com
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/evaluation-service/evaluation-service
-  tag: ""
-  
+  tag: "70f11f8b12b7d1cafc8aad073465e97236dc4b74"
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8080"
