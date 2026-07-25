@@ -2,7 +2,7 @@
 serviceName: target-service
 image:
   repository: us-central1-docker.pkg.dev/fiap-502903/target-service/target-service
-  tag: "b2a51359de97856fe2c129b0d9dd7d995381546c"
+  tag: "35847ead39f1488fc48e7725b4721808270f6a1f"
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8003"
