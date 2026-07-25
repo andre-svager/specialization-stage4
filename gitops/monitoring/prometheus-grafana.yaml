@@ -60,9 +60,20 @@ spec:
           service:
             type: ClusterIP
             port: 3000
+            targetPort: 3000
           grafana.ini:
             server:
               root_url: http://localhost:3000
+          
+          # Sidecar watcher to dynamically ingest ConfigMaps with dashboards & datasources
+          sidecar:
+            dashboards:
+              enabled: true
+              label: grafana_dashboard
+              labelValue: "1"
+            datasources:
+              enabled: true
+
           datasources:
             datasources.yaml:
               apiVersion: 1
