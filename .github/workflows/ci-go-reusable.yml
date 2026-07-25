@@ -68,13 +68,15 @@ jobs:
         working-directory: ${{ inputs.service_path }}
         run: go mod verify
 
-      - name: Run golangci-lint (linting & formatting)
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          working-directory: ${{ inputs.service_path }}
-          skip-cache: false
-        continue-on-error: true
+      # maintainers of the golangci-lint project haven't yet released a new version of their binary compiled with Go 1.25.0
+      # I need 1.25 for the otel to work
+      #- name: Run golangci-lint (linting & formatting)
+      #  uses: golangci/golangci-lint-action@v6
+      #  with:
+      #    version: latest
+      #    working-directory: ${{ inputs.service_path }}
+      #    skip-cache: false
+      #  continue-on-error: true
 
       - name: Run gosec (security scanner)
         working-directory: ${{ inputs.service_path }}
