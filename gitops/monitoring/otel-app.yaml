@@ -24,7 +24,13 @@ spec:
       values: |
         fullnameOverride: "otel-collector"
         mode: deployment
-        
+
+        # Required: this chart version has no working default image
+        image:
+          repository: "otel/opentelemetry-collector-contrib"
+        command:
+          name: "otelcol-contrib"
+
         # Open the standard OTLP ports for your apps to use
         ports:
           otlp:
@@ -47,10 +53,10 @@ spec:
                   endpoint: 0.0.0.0:4317
                 http:
                   endpoint: 0.0.0.0:4318
-          
+
           processors:
             batch: {}
-          
+
           exporters:
             # Prints data to the pod logs (great for debugging)
             debug:
@@ -58,7 +64,7 @@ spec:
             # Formats and sends logs to your Loki instance
             loki:
               endpoint: "http://loki-stack.monitoring.svc.cluster.local:3100/loki/api/v1/push"
-              
+
           service:
             pipelines:
               logs:
