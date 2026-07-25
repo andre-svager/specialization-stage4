@@ -30,10 +30,8 @@ env:
   - name: GCP_PROJECT_ID
     value: "fiap-502903"
   - name: MASTER_KEY
-    valueFrom:
-      secretKeyRef:
-        name: auth-service-secrets
-        key: MASTER_KEY
+    value: "admin-secreto-123"
+
 database:
   enabled: true
   secretName: auth-db-credentials
