@@ -1,0 +1,71 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-collector
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2" # Starts after Loki
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  source:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: "0.93.0"
+    helm:
+      values: |
+        fullnameOverride: "otel-collector"
+        mode: deployment
+        
+        # Open the standard OTLP ports for your apps to use
+        ports:
+          otlp:
+            enabled: true
+            containerPort: 4317
+            servicePort: 4317
+            protocol: TCP
+          otlp-http:
+            enabled: true
+            containerPort: 4318
+            servicePort: 4318
+            protocol: TCP
+
+        # The Routing Configuration
+        config:
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+                http:
+                  endpoint: 0.0.0.0:4318
+          
+          processors:
+            batch: {}
+          
+          exporters:
+            # Prints data to the pod logs (great for debugging)
+            debug:
+              verbosity: normal
+            # Formats and sends logs to your Loki instance
+            loki:
+              endpoint: "http://loki-stack.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+              
+          service:
+            pipelines:
+              logs:
+                receivers: [otlp]
+                processors: [batch]
+                exporters: [loki, debug]
+              metrics:
+                receivers: [otlp]
+                processors: [batch]
+                exporters: [debug] # We will wire this to Prometheus next!

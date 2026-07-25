@@ -6,73 +6,72 @@ metadata:
   labels:
     # This label tells Grafana to grab this dashboard
     grafana_dashboard: "1"
-spec:
-  data:
-    toggle-master-dashboard.json: |-
-      {
-        "annotations": {
-          "list": [
+data:
+  toggle-master-dashboard.json: |-
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": "-- Grafana --",
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "panels": [
+        {
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "id": 1,
+          "title": "Cluster CPU Usage",
+          "type": "gauge",
+          "targets": [
             {
-              "builtIn": 1,
-              "datasource": "-- Grafana --",
-              "enable": true,
-              "hide": true,
-              "iconColor": "rgba(0, 211, 255, 1)",
-              "name": "Annotations & Alerts",
-              "type": "dashboard"
+              "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+              "legendFormat": "CPU Usage - {{instance}}",
+              "refId": "A"
             }
           ]
         },
-        "editable": true,
-        "panels": [
-          {
-            "datasource": "Prometheus",
-            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-            "id": 1,
-            "title": "Cluster CPU Usage",
-            "type": "gauge",
-            "targets": [
-              {
-                "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
-                "legendFormat": "CPU Usage - {{instance}}",
-                "refId": "A"
-              }
-            ]
-          },
-          {
-            "datasource": "Prometheus",
-            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-            "id": 2,
-            "title": "Cluster Memory Usage",
-            "type": "gauge",
-            "targets": [
-              {
-                "expr": "100 * (1 - ((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)))",
-                "legendFormat": "Memory Usage - {{instance}}",
-                "refId": "A"
-              }
-            ]
-          },
-          {
-            "datasource": "Loki",
-            "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
-            "id": 4,
-            "title": "Real-time Logs",
-            "type": "table",
-            "targets": [
-              {
-                "expr": "{namespace=\"default\"}",
-                "refId": "A"
-              }
-            ]
-          }
-        ],
-        "refresh": "5s",
-        "schemaVersion": 27,
-        "style": "dark",
-        "tags": ["togglemaster", "monitoring"],
-        "time": { "from": "now-1h", "to": "now" },
-        "title": "ToggleMaster Monitoring Dashboard",
-        "uid": "toggle-master-dashboard",
-        "version": 1
-      }
+        {
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "id": 2,
+          "title": "Cluster Memory Usage",
+          "type": "gauge",
+          "targets": [
+            {
+              "expr": "100 * (1 - ((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)))",
+              "legendFormat": "Memory Usage - {{instance}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": "Loki",
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+          "id": 4,
+          "title": "Real-time Logs",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "{namespace=\"default\"}",
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "refresh": "5s",
+      "schemaVersion": 27,
+      "style": "dark",
+      "tags": ["togglemaster", "monitoring"],
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "ToggleMaster Monitoring Dashboard",
+      "uid": "toggle-master-dashboard",
+      "version": 1
+    }
